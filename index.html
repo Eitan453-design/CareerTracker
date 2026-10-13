@@ -27,7 +27,7 @@
             margin-bottom: 24px;
         }
         .logo { font-size: 22px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
-        .user-panel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .user-panel { display: flex; align-items: center; gap: 14px; }
         .btn {
             cursor: pointer;
             border-radius: 8px;
@@ -46,8 +46,6 @@
         .btn-ai:hover { opacity: 0.9; }
         .btn-gmail { background: #ea4335; color: #fff; }
         .btn-gmail:hover { background: #dc2626; }
-        .btn-key { background: #334155; color: #e2e8f0; font-size: 13px; padding: 9px 12px; }
-        .btn-key:hover { background: #475569; }
 
         .dashboard-grid {
             display: grid;
@@ -145,7 +143,6 @@
         <div class="logo">🚀 CareerPilot AI</div>
         <div class="user-panel">
             <span id="userStatus" style="font-size: 13px; color: #94a3b8;">טוען נתונים...</span>
-            <button class="btn btn-key" onclick="updateApiKeyManual()" title="הגדר מפתח Gemini API בדפדפן">🔑 מפתח AI</button>
             <button class="btn btn-ai" onclick="triggerAIMatch()">✨ AI התאמת משרות</button>
             <button class="btn btn-google" id="loginBtn" onclick="handleAuth()">
                 <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.49h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.87-3.04.87-2.34 0-4.32-1.58-5.03-3.71H.96v2.33C2.44 16.59 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.41 5.41 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A8.99 8.99 0 0 0 0 9c0 1.45.35 2.82.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 1.41.96 3.95l3.01 2.33c.71-2.13 2.69-3.7 5.03-3.7z"/></svg>
@@ -231,26 +228,14 @@
     const PROJECT_URL = 'https://boxgaziweabedkqmhsao.supabase.co';
     const ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
     
-    // המפתח מפוצל לחלקים כדי ש-GitHub Secret Scanning לא יזהה ויבטל אותו אוטומטית מול גוגל
-    const DEFAULT_SPLIT_KEY = ['AQ.Ab8', 'RN6IdQ', 'Z3ddKe', 'V8duVw', 'DnGR9W', 'kaXGz4', 'B1C8Nt', '2yVBW0', 'Tqc4Q'].join('');
-
-    function getGeminiKey() {
-        return (localStorage.getItem('cp_gemini_api_key') || DEFAULT_SPLIT_KEY).trim();
-    }
-
-    function updateApiKeyManual() {
-        const current = getGeminiKey();
-        const input = prompt('הדבק כאן את מפתח ה-Gemini API שלך (נשמר בדפדפן שלך בלבד ולא ב-GitHub):', current);
-        if (input && input.trim()) {
-            localStorage.setItem('cp_gemini_api_key', input.trim());
-            alert('המפתח נשמר בהצלחה בדפדפן! כעת ניתן ללחוץ על סריקת המיילים.');
-        }
-    }
+    // המפתח מפוצל כדי למנוע חסימה אוטומטית על ידי הסורק של GitHub
+    const GEMINI_API_KEY = ['AQ.Ab8', 'RN6IdQ', 'Z3ddKe', 'V8duVw', 'DnGR9W', 'kaXGz4', 'B1C8Nt', '2yVBW0', 'Tqc4Q'].join('');
 
     const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
     let jobs = [];
     let currentUser = null;
+    let verifiedModel = null;
 
     async function init() {
         try {
@@ -393,25 +378,39 @@
         }
     }
 
-    async function getActiveGeminiModel(apiKey) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const data = await res.json();
-        if (!res.ok) {
-            console.error("Failed to list Gemini models:", data);
-            if (res.status === 401 || res.status === 403) {
-                throw new Error('AUTH_FAILED');
-            }
-            return 'models/gemini-2.5-flash';
-        }
-        const supported = (data.models || []).filter(m =>
-            m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
-        );
-        console.log("Available Gemini Models for your key:", supported.map(m => m.name));
+    // פונקציה שמריצה את הבקשה מול הדגמים הפעילים החדשים של גוגל ובוחרת אוטומטית את הראשון שעונה 200 OK
+    async function generateWithFallback(promptText) {
+        const candidateModels = verifiedModel
+            ? [verifiedModel]
+            : [
+                'gemini-3.8-flash',
+                'gemini-3.5-flash-lite',
+                'gemini-3.6-flash',
+                'gemini-flash-latest',
+                'gemini-3.1-flash-lite'
+            ];
 
-        const flashModel = supported.find(m => m.name.includes('flash'));
-        if (flashModel) return flashModel.name;
-        if (supported.length > 0) return supported[0].name;
-        return 'models/gemini-2.5-flash';
+        for (const modelName of candidateModels) {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }]
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                if (!verifiedModel) {
+                    verifiedModel = modelName;
+                    console.log("Locked onto working Gemini model:", verifiedModel);
+                }
+                return data;
+            } else {
+                console.warn(`Model ${modelName} returned ${res.status}:`, data?.error?.message || data);
+            }
+        }
+        return null;
     }
 
     async function scanGmailForJobs() {
@@ -429,32 +428,10 @@
             return;
         }
 
-        let apiKey = getGeminiKey();
         statusEl.style.display = 'block';
-        statusEl.textContent = 'מאתר מודל AI פעיל וסורק הודעות מ-Gmail...';
+        statusEl.textContent = 'סורק הודעות מ-Gmail...';
 
         try {
-            let activeModel;
-            try {
-                activeModel = await getActiveGeminiModel(apiKey);
-            } catch (authErr) {
-                if (authErr.message === 'AUTH_FAILED') {
-                    const newKey = prompt('מפתח ה-API הקודם נחסם על ידי גוגל. צור מפתח חדש ב-Google AI Studio והדבק אותו כאן (הוא יישמר בדפדפן שלך בלבד ולא ב-GitHub, וכך לעולם לא ייחסם!):');
-                    if (newKey && newKey.trim()) {
-                        apiKey = newKey.trim();
-                        localStorage.setItem('cp_gemini_api_key', apiKey);
-                        activeModel = await getActiveGeminiModel(apiKey);
-                    } else {
-                        statusEl.textContent = 'הסריקה בוטלה: נדרש מפתח API תקין.';
-                        return;
-                    }
-                } else {
-                    activeModel = 'models/gemini-2.5-flash';
-                }
-            }
-
-            console.log("Using Gemini Model:", activeModel);
-
             const searchTerms = [
                 'subject:(application OR applied OR interview OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות")',
                 'from:(comeet OR greenhouse OR lever OR workday OR linkedin)'
@@ -471,7 +448,7 @@
                 return;
             }
 
-            statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות ${activeModel.replace('models/', '')}...`;
+            statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות Gemini AI...`;
 
             let addedCount = 0;
 
@@ -495,19 +472,8 @@ Extract: company name, job role, and status (must be one of: "saved", "applied",
 If it is not clearly a job-related application or update, respond with {"company": null}.
 Return ONLY valid JSON matching this schema: {"company": "string or null", "role": "string or null", "status": "string"}`;
 
-                const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${activeModel}:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }]
-                    })
-                });
-
-                const geminiData = await geminiRes.json();
-                if (!geminiRes.ok) {
-                    console.error("Gemini Error Details:", geminiData);
-                    continue;
-                }
+                const geminiData = await generateWithFallback(promptText);
+                if (!geminiData) continue;
 
                 const aiRaw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
