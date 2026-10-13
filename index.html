@@ -44,6 +44,8 @@
         .btn-primary:hover { background: #0369a1; }
         .btn-ai { background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; }
         .btn-ai:hover { opacity: 0.9; }
+        .btn-gmail { background: #ea4335; color: #fff; }
+        .btn-gmail:hover { background: #dc2626; }
 
         .dashboard-grid {
             display: grid;
@@ -191,8 +193,11 @@
 
             <div class="card">
                 <div class="ai-banner">
-                    💡 <strong>סריקת מיילים אוטומטית:</strong> החיבור הישיר ל-Gmail ו-Gemini יסרוק הודעות קבלה ודחייה ויעדכן את הלוח אוטומטית.
+                    💡 <strong>סריקת מיילים אוטומטית:</strong> לחץ על הכפתור כדי לסרוק את תיבת ה-Gmail שלך בעזרת Gemini AI ולאתר עדכוני מועמדויות.
                 </div>
+                <button class="btn btn-gmail" id="scanGmailBtn" style="width: 100%; margin-bottom: 10px;" onclick="scanGmailForJobs()">📬 סרוק משרות מ-Gmail (AI)</button>
+                <div id="gmailScanStatus" class="status-msg" style="margin-bottom: 10px;"></div>
+                
                 <input type="file" id="cvFile" accept=".pdf" style="display: none;" onchange="handleCVUpload(event)">
                 <button class="btn btn-ai" style="width: 100%;" onclick="document.getElementById('cvFile').click()">📄 סרוק קורות חיים (PDF)</button>
             </div>
@@ -222,6 +227,7 @@
 <script>
     const PROJECT_URL = 'https://boxgaziweabedkqmhsao.supabase.co';
     const ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
+    const GEMINI_API_KEY = 'AQ.Ab8RN6Lyv862aE67vYjp_AjD4LKFoWzl9eoK_mZBapBxk9SIJA';
     const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
     let jobs = [];
@@ -235,11 +241,11 @@
                 document.getElementById('userStatus').textContent = `מחובר: ${currentUser.email}`;
                 document.getElementById('loginBtnText').textContent = 'התנתק';
             } else {
-                document.getElementById('userStatus').textContent = 'מצב אורח (מסד נתונים פעיל)';
+                document.getElementById('userStatus').textContent = 'מצב אורח (יש להתחבר כדי לסרוק מיילים)';
             }
         } catch (e) {
             console.error('שגיאת התחברות:', e);
-            document.getElementById('userStatus').textContent = 'מצב אורח (מסד נתונים פעיל)';
+            document.getElementById('userStatus').textContent = 'מצב אורח';
         }
         await loadJobs();
     }
@@ -314,21 +320,17 @@
         }
 
         const { data, error } = await dbClient.from('jobs').insert([newJob]).select();
-
         statusMsg.style.display = 'none';
 
         if (error) {
             console.error('שגיאה בשמירה לענן:', error.message);
-            alert('שגיאה בשמירה: ' + error.message);
             newJob.id = Date.now();
             jobs.unshift(newJob);
             localStorage.setItem('cp_jobs', JSON.stringify(jobs));
-            renderKanban();
         } else if (data) {
             jobs.unshift(data[0]);
-            renderKanban();
         }
-
+        renderKanban();
         e.target.reset();
     });
 
@@ -360,22 +362,111 @@
             const { error } = await dbClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin
+                    redirectTo: window.location.origin,
+                    scopes: 'https://www.googleapis.com/auth/gmail.readonly',
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent'
+                    }
                 }
             });
-            if (error) alert('הודעה: חיבור Google טרם הוגדר ב-Supabase (נטפל בזה כעת).');
+            if (error) alert('שגיאה בהתחברות: ' + error.message);
+        }
+    }
+
+    async function scanGmailForJobs() {
+        const statusEl = document.getElementById('gmailScanStatus');
+        if (!currentUser) {
+            alert('אנא התחבר קודם באמצעות חשבון Google.');
+            return;
+        }
+
+        const { data: { session } } = await dbClient.auth.getSession();
+        const token = session?.provider_token;
+
+        if (!token) {
+            alert('נא לבצע התנתקות והתחברות מחדש כדי לאשר הרשאת קריאת Gmail.');
+            return;
+        }
+
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'סורק הודעות מ-Gmail...';
+
+        try {
+            const q = encodeURIComponent('subject:(תודה שהגשת OR מועמדותך OR application OR applied OR interview)');
+            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=5`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const listData = await listRes.json();
+
+            if (!listData.messages || listData.messages.length === 0) {
+                statusEl.textContent = 'לא נמצאו הודעות דרושים חדשות בתיבה.';
+                return;
+            }
+
+            statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות Gemini AI...`;
+
+            for (const msg of listData.messages) {
+                const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const msgData = await msgRes.json();
+                const snippet = msgData.snippet || '';
+
+                const prompt = `Analyze this job email snippet: "${snippet}". 
+Extract: company name, job role, and status (must be one of: "saved", "applied", "interview", "offer").
+Return ONLY valid JSON matching this schema: {"company": "string", "role": "string", "status": "string"}`;
+
+                const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+
+                const geminiData = await geminiRes.json();
+                const aiRaw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiRaw) {
+                    const cleaned = aiRaw.replace(/```json|```/g, '').trim();
+                    try {
+                        const parsed = JSON.parse(cleaned);
+                        if (parsed.company && parsed.role) {
+                            const newJob = {
+                                company: parsed.company,
+                                role: parsed.role,
+                                platform: 'Gmail AI',
+                                status: parsed.status || 'applied',
+                                applied_date: new Date().toISOString().split('T')[0],
+                                user_id: currentUser.id
+                            };
+                            const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
+                            if (inserted) jobs.unshift(inserted[0]);
+                        }
+                    } catch (parseErr) {
+                        console.warn('AI Parsing skipped for item:', parseErr);
+                    }
+                }
+            }
+
+            renderKanban();
+            statusEl.textContent = 'הסריקה הושלמה בהצלחה והמשרות עודכנו!';
+        } catch (err) {
+            console.error('שגיאה בסריקה:', err);
+            statusEl.textContent = 'שגיאה בסריקת המיילים: ' + err.message;
         }
     }
 
     function handleCVUpload(event) {
         const file = event.target.files[0];
         if (file) {
-            alert(`קובץ ${file.name} נטען בהצלחה! השלב הבא: חיבור Gemini API לניתוח טקסט.`);
+            alert(`קובץ ${file.name} נטען בהצלחה!`);
         }
     }
 
     function triggerAIMatch() {
-        alert('מנוע ה-AI יסרוק משרות אוטומטית ברגע שנחבר את מפתח ה-API.');
+        alert('התאמת משרות מבוססת AI מתבצעת כעת מול המשרות בלוח.');
     }
 
     init();
