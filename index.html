@@ -390,21 +390,29 @@
         }
 
         statusEl.style.display = 'block';
-        statusEl.textContent = 'סורק הודעות מ-Gmail...';
+        statusEl.textContent = 'סורק הודעות מ-Gmail בטווח מורחב...';
 
         try {
-            const q = encodeURIComponent('subject:(תודה שהגשת OR מועמדותך OR application OR applied OR interview)');
-            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=5`, {
+            // שאילתה מורחבת הכוללת מערכות גיוס ומילות מפתח נפוצות
+            const searchTerms = [
+                'subject:(application OR applied OR interview OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות")',
+                'from:(comeet OR greenhouse OR lever OR workday OR linkedin)'
+            ].join(' OR ');
+
+            const q = encodeURIComponent(searchTerms);
+            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=15`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const listData = await listRes.json();
 
             if (!listData.messages || listData.messages.length === 0) {
-                statusEl.textContent = 'לא נמצאו הודעות דרושים חדשות בתיבה.';
+                statusEl.textContent = 'לא נמצאו הודעות דרושים בחיפוש המורחב. נסה לשלוח לעצמך מייל בדיקה עם המילה application בנושא.';
                 return;
             }
 
             statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות Gemini AI...`;
+
+            let addedCount = 0;
 
             for (const msg of listData.messages) {
                 const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
@@ -415,7 +423,8 @@
 
                 const prompt = `Analyze this job email snippet: "${snippet}". 
 Extract: company name, job role, and status (must be one of: "saved", "applied", "interview", "offer").
-Return ONLY valid JSON matching this schema: {"company": "string", "role": "string", "status": "string"}`;
+If it is not clearly a job-related update, respond with {"company": null}.
+Return ONLY valid JSON matching this schema: {"company": "string or null", "role": "string or null", "status": "string"}`;
 
                 const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
@@ -442,7 +451,10 @@ Return ONLY valid JSON matching this schema: {"company": "string", "role": "stri
                                 user_id: currentUser.id
                             };
                             const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
-                            if (inserted) jobs.unshift(inserted[0]);
+                            if (inserted) {
+                                jobs.unshift(inserted[0]);
+                                addedCount++;
+                            }
                         }
                     } catch (parseErr) {
                         console.warn('AI Parsing skipped for item:', parseErr);
@@ -451,7 +463,9 @@ Return ONLY valid JSON matching this schema: {"company": "string", "role": "stri
             }
 
             renderKanban();
-            statusEl.textContent = 'הסריקה הושלמה בהצלחה והמשרות עודכנו!';
+            statusEl.textContent = addedCount > 0 
+                ? `הסריקה הושלמה! נוספו ${addedCount} משרות חדשות ללוח.` 
+                : 'הסריקה הושלמה, לא אותרו משרות חדשות להוספה.';
         } catch (err) {
             console.error('שגיאה בסריקה:', err);
             statusEl.textContent = 'שגיאה בסריקת המיילים: ' + err.message;
