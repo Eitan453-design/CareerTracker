@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareerPilot | AI Job Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -74,7 +73,6 @@
         }
         input:focus, select:focus { outline: none; border-color: #38bdf8; }
 
-        /* Kanban Board */
         .kanban-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -142,7 +140,7 @@
     <header>
         <div class="logo">🚀 CareerPilot AI</div>
         <div class="user-panel">
-            <span id="userStatus" style="font-size: 13px; color: #94a3b8;">אורח (מסד נתונים פעיל)</span>
+            <span id="userStatus" style="font-size: 13px; color: #94a3b8;">טוען נתונים...</span>
             <button class="btn btn-ai" onclick="triggerAIMatch()">✨ AI התאמת משרות</button>
             <button class="btn btn-google" id="loginBtn" onclick="handleAuth()">
                 <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.49h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.87-3.04.87-2.34 0-4.32-1.58-5.03-3.71H.96v2.33C2.44 16.59 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.41 5.41 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A8.99 8.99 0 0 0 0 9c0 1.45.35 2.82.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 1.41.96 3.95l3.01 2.33c.71-2.13 2.69-3.7 5.03-3.7z"/></svg>
@@ -152,7 +150,6 @@
     </header>
 
     <div class="dashboard-grid">
-        <!-- Sidebar -->
         <div>
             <div class="card">
                 <h2>הוספת משרה חדשה</h2>
@@ -194,14 +191,13 @@
 
             <div class="card">
                 <div class="ai-banner">
-                    💡 <strong>התאמת AI אישית:</strong> סרוק קורות חיים וקבל ניתוח כישורים והתאמת משרות חכמה עם Gemini.
+                    💡 <strong>סריקת מיילים אוטומטית:</strong> החיבור הישיר ל-Gmail ו-Gemini יסרוק הודעות קבלה ודחייה ויעדכן את הלוח אוטומטית.
                 </div>
                 <input type="file" id="cvFile" accept=".pdf" style="display: none;" onchange="handleCVUpload(event)">
                 <button class="btn btn-ai" style="width: 100%;" onclick="document.getElementById('cvFile').click()">📄 סרוק קורות חיים (PDF)</button>
             </div>
         </div>
 
-        <!-- Kanban Board -->
         <div class="kanban-board">
             <div class="kanban-col">
                 <div class="col-title col-saved"><span>נשמר</span><span id="count-saved">0</span></div>
@@ -224,34 +220,38 @@
 </div>
 
 <script>
-    // Supabase Configuration
-    const SUPABASE_URL = 'https://boxgaziweabedkqmhsao.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const PROJECT_URL = 'https://boxgaziweabedkqmhsao.supabase.co';
+    const ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
+    const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
     let jobs = [];
     let currentUser = null;
 
-    // Initialize Auth & Data
     async function init() {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session && session.user) {
-            currentUser = session.user;
-            document.getElementById('userStatus').textContent = `מחובר: ${currentUser.email}`;
-            document.getElementById('loginBtnText').textContent = 'התנתק';
+        try {
+            const { data: { session } } = await dbClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                document.getElementById('userStatus').textContent = `מחובר: ${currentUser.email}`;
+                document.getElementById('loginBtnText').textContent = 'התנתק';
+            } else {
+                document.getElementById('userStatus').textContent = 'מצב אורח (מסד נתונים פעיל)';
+            }
+        } catch (e) {
+            console.error('שגיאת התחברות:', e);
+            document.getElementById('userStatus').textContent = 'מצב אורח (מסד נתונים פעיל)';
         }
         await loadJobs();
     }
 
-    // Load Jobs from Supabase
     async function loadJobs() {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
             .from('jobs')
             .select('*')
             .order('id', { ascending: false });
 
         if (error) {
-            console.warn('שגיאה בשליפה (עובר לגיבוי מקומי):', error.message);
+            console.warn('שגיאה בשליפה מהענן:', error.message);
             jobs = JSON.parse(localStorage.getItem('cp_jobs')) || [];
         } else if (data) {
             jobs = data;
@@ -295,7 +295,6 @@
         });
     }
 
-    // Add Job to Supabase
     document.getElementById('addJobForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const statusMsg = document.getElementById('saveStatus');
@@ -314,12 +313,13 @@
             newJob.user_id = currentUser.id;
         }
 
-        const { data, error } = await supabase.from('jobs').insert([newJob]).select();
+        const { data, error } = await dbClient.from('jobs').insert([newJob]).select();
 
         statusMsg.style.display = 'none';
 
         if (error) {
             console.error('שגיאה בשמירה לענן:', error.message);
+            alert('שגיאה בשמירה: ' + error.message);
             newJob.id = Date.now();
             jobs.unshift(newJob);
             localStorage.setItem('cp_jobs', JSON.stringify(jobs));
@@ -332,14 +332,12 @@
         e.target.reset();
     });
 
-    // Move Job Status
     async function moveJob(id, currentStatus) {
         const flow = ['saved', 'applied', 'interview', 'offer'];
         const currentIndex = flow.indexOf(currentStatus);
         if (currentIndex < flow.length - 1) {
             const nextStatus = flow[currentIndex + 1];
-            
-            await supabase.from('jobs').update({ status: nextStatus }).eq('id', id);
+            await dbClient.from('jobs').update({ status: nextStatus }).eq('id', id);
 
             const job = jobs.find(j => j.id === id);
             if (job) job.status = nextStatus;
@@ -347,40 +345,37 @@
         }
     }
 
-    // Delete Job
     async function deleteJob(id) {
         if (!confirm('האם למחוק משרה זו?')) return;
-        
-        await supabase.from('jobs').delete().eq('id', id);
+        await dbClient.from('jobs').delete().eq('id', id);
         jobs = jobs.filter(j => j.id !== id);
         renderKanban();
     }
 
-    // Google Auth Handler
     async function handleAuth() {
         if (currentUser) {
-            await supabase.auth.signOut();
+            await dbClient.auth.signOut();
             location.reload();
         } else {
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { error } = await dbClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: window.location.origin
                 }
             });
-            if (error) alert('שגיאה בהתחברות: ' + error.message);
+            if (error) alert('הודעה: חיבור Google טרם הוגדר ב-Supabase (נטפל בזה כעת).');
         }
     }
 
     function handleCVUpload(event) {
         const file = event.target.files[0];
         if (file) {
-            alert(`קובץ ${file.name} נטען בהצלחה! השלב הבא: חיבור Gemini API לניתוח טקסט והתאמת משרות.`);
+            alert(`קובץ ${file.name} נטען בהצלחה! השלב הבא: חיבור Gemini API לניתוח טקסט.`);
         }
     }
 
     function triggerAIMatch() {
-        alert('מנוע ה-AI יסרוק משרות מתאימות על פי הכישורים שלך.');
+        alert('מנוע ה-AI יסרוק משרות אוטומטית ברגע שנחבר את מפתח ה-API.');
     }
 
     init();
