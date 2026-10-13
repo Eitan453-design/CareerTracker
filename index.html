@@ -227,7 +227,7 @@
 <script>
     const PROJECT_URL = 'https://boxgaziweabedkqmhsao.supabase.co';
     const ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
-    const GEMINI_API_KEY = 'AQ.Ab8RN6Lyv862aE67vYjp_AjD4LKFoWzl9eoK_mZBapBxk9SIJA';
+    const GEMINI_API_KEY = 'AQ.Ab8RN6IdZxnVVV33yUG-QtOex0MeWCPZ_jKELhhu7k5vMIKNnw';
     const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
     let jobs = [];
@@ -393,7 +393,6 @@
         statusEl.textContent = 'סורק הודעות מ-Gmail בטווח מורחב...';
 
         try {
-            // שאילתה מורחבת הכוללת מערכות גיוס ומילות מפתח נפוצות
             const searchTerms = [
                 'subject:(application OR applied OR interview OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות")',
                 'from:(comeet OR greenhouse OR lever OR workday OR linkedin)'
