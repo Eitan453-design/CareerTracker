@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerPilot | AI Job Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Assistant', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            margin-bottom: 24px;
+        }
+        .logo { font-size: 22px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+        .user-panel { display: flex; align-items: center; gap: 14px; }
+        .btn {
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            padding: 9px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: 0.2s ease;
+        }
+        .btn-google { background: #ffffff; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+        .btn-google:hover { background: #f1f5f9; }
+        .btn-primary { background: #0284c7; color: #fff; }
+        .btn-primary:hover { background: #0369a1; }
+        .btn-ai { background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; }
+        .btn-ai:hover { opacity: 0.9; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h2 { font-size: 17px; margin-bottom: 14px; color: #94a3b8; font-weight: 600; }
+
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 13px; color: #cbd5e1; }
+        input, select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #fff;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        input:focus, select:focus { outline: none; border-color: #38bdf8; }
+
+        /* Kanban Board */
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        .kanban-col {
+            background: #182234;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 14px;
+            min-height: 520px;
+            display: flex;
+            flex-direction: column;
+        }
+        .col-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid;
+            display: flex;
+            justify-content: space-between;
+        }
+        .col-saved { border-color: #94a3b8; color: #cbd5e1; }
+        .col-applied { border-color: #38bdf8; color: #38bdf8; }
+        .col-interview { border-color: #f59e0b; color: #f59e0b; }
+        .col-offer { border-color: #10b981; color: #10b981; }
+
+        .job-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .job-card h4 { font-size: 15px; color: #f8fafc; margin-bottom: 4px; }
+        .job-card p { font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+        .job-card .meta { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; }
+        .job-card .actions { display: flex; gap: 6px; margin-top: 8px; }
+        .btn-small { padding: 4px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; }
+        .btn-move { background: #334155; color: #cbd5e1; }
+        .btn-del { background: #7f1d1d; color: #fca5a5; }
+
+        .ai-banner {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
+            border: 1px solid #6366f1;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="logo">🚀 CareerPilot AI</div>
+        <div class="user-panel">
+            <button class="btn btn-ai" onclick="triggerAIMatch()">✨ AI התאמת משרות</button>
+            <button class="btn btn-google" id="loginBtn" onclick="handleAuth()">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.49h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.87-3.04.87-2.34 0-4.32-1.58-5.03-3.71H.96v2.33C2.44 16.59 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.41 5.41 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A8.99 8.99 0 0 0 0 9c0 1.45.35 2.82.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 1.41.96 3.95l3.01 2.33c.71-2.13 2.69-3.7 5.03-3.7z"/></svg>
+                התחבר עם Google
+            </button>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <!-- Sidebar: הוספת משרה ופרופיל -->
+        <div>
+            <div class="card">
+                <h2>הוספת משרה חדשה</h2>
+                <form id="addJobForm">
+                    <div class="form-group">
+                        <label>שם החברה</label>
+                        <input type="text" id="company" placeholder="למשל: בינת, אלביט, צ'ק פוינט" required>
+                    </div>
+                    <div class="form-group">
+                        <label>תפקיד</label>
+                        <input type="text" id="role" placeholder="למשל: PMO / Project Manager" required>
+                    </div>
+                    <div class="form-group">
+                        <label>פלטפורמה / מקור</label>
+                        <select id="platform">
+                            <option value="LinkedIn">LinkedIn</option>
+                            <option value="AllJobs">AllJobs</option>
+                            <option value="Drushim">דרושים IL</option>
+                            <option value="Comeet">Comeet</option>
+                            <option value="חבר מביא חבר">Referral / אישי</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>שלב התחלתי</label>
+                        <select id="initialStatus">
+                            <option value="saved">נשמר (Saved)</option>
+                            <option value="applied">הוגש (Applied)</option>
+                            <option value="interview">ראיון (Interview)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>קישור למשרה</label>
+                        <input type="url" id="jobUrl" placeholder="https://...">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">+ הוסף ללוח</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="ai-banner">
+                    💡 <strong>התאמת AI אישית:</strong> העלה קורות חיים או פרופיל וקבל ציוני התאמה אוטומטיים למשרות ברשת.
+                </div>
+                <input type="file" id="cvFile" accept=".pdf" style="display: none;" onchange="handleCVUpload(event)">
+                <button class="btn btn-ai" style="width: 100%;" onclick="document.getElementById('cvFile').click()">📄 סרוק קורות חיים (PDF)</button>
+            </div>
+        </div>
+
+        <!-- Main: לוח קנבן -->
+        <div class="kanban-board">
+            <div class="kanban-col">
+                <div class="col-title col-saved"><span>נשמר</span><span id="count-saved">0</span></div>
+                <div id="col-saved-list"></div>
+            </div>
+            <div class="kanban-col">
+                <div class="col-title col-applied"><span>הוגש</span><span id="count-applied">0</span></div>
+                <div id="col-applied-list"></div>
+            </div>
+            <div class="kanban-col">
+                <div class="col-title col-interview"><span>ראיונות</span><span id="count-interview">0</span></div>
+                <div id="col-interview-list"></div>
+            </div>
+            <div class="kanban-col">
+                <div class="col-title col-offer"><span>הצעות</span><span id="count-offer">0</span></div>
+                <div id="col-offer-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let jobs = JSON.parse(localStorage.getItem('cp_jobs')) || [
+        { id: 1, company: 'Bynet Data Communications', role: 'Project Management Officer (PMO)', platform: 'LinkedIn', status: 'applied', date: '2026-10-13', link: 'https://linkedin.com' },
+        { id: 2, company: 'Elbit Systems', role: 'Junior Telecom Project Manager', platform: 'Referral', status: 'interview', date: '2026-10-12', link: '' }
+    ];
+
+    function saveAndRender() {
+        localStorage.setItem('cp_jobs', JSON.stringify(jobs));
+        renderKanban();
+    }
+
+    function renderKanban() {
+        const statuses = ['saved', 'applied', 'interview', 'offer'];
+        const counts = { saved: 0, applied: 0, interview: 0, offer: 0 };
+
+        statuses.forEach(s => {
+            const listEl = document.getElementById(`col-${s}-list`);
+            listEl.innerHTML = '';
+        });
+
+        jobs.forEach(job => {
+            counts[job.status] = (counts[job.status] || 0) + 1;
+            const col = document.getElementById(`col-${job.status}-list`);
+            if (!col) return;
+
+            const card = document.createElement('div');
+            card.className = 'job-card';
+            card.innerHTML = `
+                <h4>${job.company}</h4>
+                <p>${job.role}</p>
+                <div class="meta">
+                    <span>${job.platform}</span>
+                    <span>${job.date}</span>
+                </div>
+                <div class="actions">
+                    <button class="btn-small btn-move" onclick="moveJob(${job.id})">העבר שלב ➔</button>
+                    <button class="btn-small btn-del" onclick="deleteJob(${job.id})">מחק</button>
+                </div>
+            `;
+            col.appendChild(card);
+        });
+
+        statuses.forEach(s => {
+            document.getElementById(`count-${s}`).textContent = counts[s] || 0;
+        });
+    }
+
+    document.getElementById('addJobForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newJob = {
+            id: Date.now(),
+            company: document.getElementById('company').value,
+            role: document.getElementById('role').value,
+            platform: document.getElementById('platform').value,
+            status: document.getElementById('initialStatus').value,
+            link: document.getElementById('jobUrl').value,
+            date: new Date().toISOString().split('T')[0]
+        };
+        jobs.unshift(newJob);
+        saveAndRender();
+        e.target.reset();
+    });
+
+    function moveJob(id) {
+        const flow = ['saved', 'applied', 'interview', 'offer'];
+        const job = jobs.find(j => j.id === id);
+        if (!job) return;
+        const currentIndex = flow.indexOf(job.status);
+        if (currentIndex < flow.length - 1) {
+            job.status = flow[currentIndex + 1];
+            saveAndRender();
+        }
+    }
+
+    function deleteJob(id) {
+        if (confirm('למחוק משרה זו?')) {
+            jobs = jobs.filter(j => j.id !== id);
+            saveAndRender();
+        }
+    }
+
+    function handleAuth() {
+        alert('בשלב הבא נחבר את כפתור Google לחשבון Supabase Auth שהקמנו!');
+    }
+
+    function handleCVUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            alert(`קובץ ${file.name} נטען בהצלחה! בשלב ה-AI נחבר אותו ל-Gemini API לחילוץ כישורים והתאמת משרות.`);
+        }
+    }
+
+    function triggerAIMatch() {
+        alert('סריקת משרות חכמות: ה-AI יסרוק משרות PMO ופרויקטים המתאימות לפרופיל שלך.');
+    }
+
+    renderKanban();
+</script>
+
+</body>
+</html>
