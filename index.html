@@ -113,8 +113,42 @@
         }
         .job-card h4 { font-size: 15px; color: #f8fafc; margin-bottom: 4px; }
         .job-card p { font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
-        .job-card .meta { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; }
-        .job-card .actions { display: flex; gap: 6px; margin-top: 8px; }
+        .job-card .meta {
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .platform-badge {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .btn-link-ad {
+            display: block;
+            text-align: center;
+            background: #0f172a;
+            color: #38bdf8;
+            border: 1px solid #1e3a8a;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: 0.2s ease;
+        }
+        .btn-link-ad:hover {
+            background: #1e3a8a;
+            color: #ffffff;
+        }
+        .job-card .actions { display: flex; gap: 6px; margin-top: 4px; }
         .btn-small { padding: 4px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; }
         .btn-move { background: #334155; color: #cbd5e1; }
         .btn-del { background: #7f1d1d; color: #fca5a5; }
@@ -170,6 +204,7 @@
                             <option value="LinkedIn">LinkedIn</option>
                             <option value="AllJobs">AllJobs</option>
                             <option value="דרושים IL">דרושים IL</option>
+                            <option value="JobMaster">JobMaster</option>
                             <option value="חבר מביא חבר">אישי / חבר מביא חבר</option>
                         </select>
                     </div>
@@ -236,6 +271,7 @@
     let jobs = [];
     let currentUser = null;
     let verifiedModel = null;
+    let sortedCandidateModels = null;
 
     async function init() {
         try {
@@ -283,15 +319,22 @@
             const col = document.getElementById(`col-${job.status}-list`);
             if (!col) return;
 
+            const isGmailLink = job.link && job.link.includes('mail.google.com');
+            const linkLabel = isGmailLink ? '📩 צפה במודעה במייל' : '🔗 למעבר למודעה';
+            const linkHtml = job.link
+                ? `<a href="${job.link}" target="_blank" rel="noopener noreferrer" class="btn-link-ad">${linkLabel} ↗</a>`
+                : '';
+
             const card = document.createElement('div');
             card.className = 'job-card';
             card.innerHTML = `
                 <h4>${job.company}</h4>
                 <p>${job.role}</p>
                 <div class="meta">
-                    <span>${job.platform || 'כללי'}</span>
+                    <span class="platform-badge">🌐 ${job.platform || 'כללי'}</span>
                     <span>${job.applied_date || ''}</span>
                 </div>
+                ${linkHtml}
                 <div class="actions">
                     <button class="btn-small btn-move" onclick="moveJob(${job.id}, '${job.status}')">העבר שלב ➔</button>
                     <button class="btn-small btn-del" onclick="deleteJob(${job.id})">מחק</button>
@@ -378,20 +421,135 @@
         }
     }
 
-    // פונקציה שמריצה את הבקשה מול הדגמים הפעילים החדשים של גוגל ובוחרת אוטומטית את הראשון שעונה 200 OK
-    async function generateWithFallback(promptText) {
-        const candidateModels = verifiedModel
-            ? [verifiedModel]
-            : [
-                'gemini-3.8-flash',
-                'gemini-3.5-flash-lite',
-                'gemini-3.6-flash',
-                'gemini-flash-latest',
-                'gemini-3.1-flash-lite'
-            ];
+    // פענוח תוכן המייל וחילוץ קישורים ישירים למודעת הדרושים
+    function decodeBase64Url(str) {
+        try {
+            const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            const binStr = atob(base64);
+            const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+            return new TextDecoder('utf-8').decode(bytes);
+        } catch (e) {
+            return '';
+        }
+    }
 
-        for (const modelName of candidateModels) {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`, {
+    function extractLinksFromPayload(payload) {
+        let rawContent = '';
+        function traverse(part) {
+            if (!part) return;
+            if (part.body && part.body.data) {
+                rawContent += ' ' + decodeBase64Url(part.body.data);
+            }
+            if (part.parts && Array.isArray(part.parts)) {
+                part.parts.forEach(traverse);
+            }
+        }
+        traverse(payload);
+
+        const urlRegex = /https?:\/\/[^\s"'<>\\]+/gi;
+        const matches = rawContent.match(urlRegex) || [];
+
+        const filtered = matches
+            .map(u => u.replace(/&amp;/g, '&').replace(/[.,;)]+$/, ''))
+            .filter(u =>
+                !u.includes('unsubscribe') &&
+                !u.includes('w3.org') &&
+                !u.includes('googleapis.com') &&
+                !u.includes('gstatic.com') &&
+                !u.match(/\.(png|jpg|jpeg|gif|svg|css|woff|ico)(\?|$)/i)
+            );
+
+        // העדפה לקישורים ישירים לעמודי משרה
+        const priorityLink = filtered.find(u =>
+            u.includes('linkedin.com/comm/jobs/view') ||
+            u.includes('linkedin.com/jobs/view') ||
+            u.includes('alljobs.co.il') ||
+            u.includes('drushim.co.il') ||
+            u.includes('jobmaster.co.il') ||
+            u.includes('comeet.com/jobs') ||
+            u.includes('comeet.co/jobs') ||
+            u.includes('greenhouse.io') ||
+            u.includes('lever.co') ||
+            u.includes('workday')
+        );
+
+        return priorityLink || null;
+    }
+
+    function detectPlatformFromHeaders(from, subject, snippet) {
+        const combined = `${from} ${subject} ${snippet}`.toLowerCase();
+        if (combined.includes('linkedin')) return 'LinkedIn';
+        if (combined.includes('alljobs')) return 'AllJobs';
+        if (combined.includes('drushim') || combined.includes('דרושים')) return 'דרושים IL';
+        if (combined.includes('jobmaster') || combined.includes('ג\'וב מאסטר')) return 'JobMaster';
+        if (combined.includes('comeet')) return 'Comeet';
+        if (combined.includes('greenhouse')) return 'Greenhouse';
+        if (combined.includes('lever')) return 'Lever';
+        if (combined.includes('workday')) return 'Workday';
+        if (combined.includes('glassdoor')) return 'Glassdoor';
+        if (combined.includes('indeed')) return 'Indeed';
+        return null;
+    }
+
+    // חילוץ מספר הגרסה משם המודל למיון אוטומטי מהחדש לישן
+    function extractVersionScore(modelName) {
+        const match = modelName.match(/gemini-(\d+(?:\.\d+)?)/);
+        const version = match ? parseFloat(match[1]) : 0;
+        const isFlash = modelName.includes('flash') ? 0.05 : 0;
+        const isNotLite = !modelName.includes('lite') ? 0.02 : 0;
+        return version + isFlash + isNotLite;
+    }
+
+    async function getNewestModelsList() {
+        if (sortedCandidateModels) return sortedCandidateModels;
+
+        const fallbackModels = [
+            'models/gemini-3.8-flash',
+            'models/gemini-3.5-flash-lite',
+            'models/gemini-3.6-flash',
+            'models/gemini-flash-latest'
+        ];
+
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+            const data = await res.json();
+            if (!res.ok || !data.models) {
+                return fallbackModels;
+            }
+
+            const validModels = data.models
+                .filter(m =>
+                    m.supportedGenerationMethods &&
+                    m.supportedGenerationMethods.includes('generateContent') &&
+                    m.name.includes('gemini') &&
+                    !m.name.includes('tts') &&
+                    !m.name.includes('image') &&
+                    !m.name.includes('embedding') &&
+                    !m.name.includes('aqa')
+                )
+                .map(m => m.name);
+
+            validModels.sort((a, b) => extractVersionScore(b) - extractVersionScore(a));
+
+            for (const fb of fallbackModels) {
+                if (!validModels.includes(fb)) validModels.push(fb);
+            }
+
+            sortedCandidateModels = validModels.length > 0 ? validModels : fallbackModels;
+            console.log("Models sorted automatically from newest to oldest:", sortedCandidateModels);
+            return sortedCandidateModels;
+        } catch (err) {
+            console.warn("Could not fetch dynamic model list, using fallback:", err);
+            return fallbackModels;
+        }
+    }
+
+    async function generateWithNewestModel(promptText, statusEl) {
+        const candidates = verifiedModel ? [verifiedModel] : await getNewestModelsList();
+
+        for (const modelPath of candidates) {
+            const cleanName = modelPath.startsWith('models/') ? modelPath : `models/${modelPath}`;
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${cleanName}:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -402,12 +560,18 @@
             const data = await res.json();
             if (res.ok) {
                 if (!verifiedModel) {
-                    verifiedModel = modelName;
-                    console.log("Locked onto working Gemini model:", verifiedModel);
+                    verifiedModel = cleanName;
+                    console.log("✅ Auto-selected newest working Gemini model:", verifiedModel);
+                    if (statusEl) {
+                        statusEl.textContent = `מנתח הודעות באמצעות המודל העדכני: ${verifiedModel.replace('models/', '')}...`;
+                    }
                 }
                 return data;
             } else {
-                console.warn(`Model ${modelName} returned ${res.status}:`, data?.error?.message || data);
+                if (verifiedModel === cleanName) {
+                    verifiedModel = null;
+                }
+                console.warn(`Skipping ${cleanName} (${res.status}):`, data?.error?.message || '');
             }
         }
         return null;
@@ -429,12 +593,12 @@
         }
 
         statusEl.style.display = 'block';
-        statusEl.textContent = 'סורק הודעות מ-Gmail...';
+        statusEl.textContent = 'מאתר אוטומטית את גרסת Gemini החדשה ביותר וסורק הודעות מ-Gmail...';
 
         try {
             const searchTerms = [
-                'subject:(application OR applied OR interview OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות")',
-                'from:(comeet OR greenhouse OR lever OR workday OR linkedin)'
+                'subject:(application OR applied OR interview OR job OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות" OR "משרה" OR "דרושים")',
+                'from:(comeet OR greenhouse OR lever OR workday OR linkedin OR alljobs OR drushim OR jobmaster)'
             ].join(' OR ');
 
             const q = encodeURIComponent(searchTerms);
@@ -444,13 +608,13 @@
             const listData = await listRes.json();
 
             if (!listData.messages || listData.messages.length === 0) {
-                statusEl.textContent = 'לא נמצאו הודעות דרושים בחיפוש. נסה לשלוח לעצמך מייל בדיקה עם המילה application בנושא.';
+                statusEl.textContent = 'לא נמצאו הודעות דרושים בחיפוש.';
                 return;
             }
 
-            statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות Gemini AI...`;
-
             let addedCount = 0;
+            let updatedCount = 0;
+            let skippedDuplicates = 0;
 
             for (const msg of listData.messages) {
                 const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
@@ -463,16 +627,28 @@
                 const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
                 const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
 
+                // חילוץ קישור ישיר למודעה מתוך גוף המייל, או קישור ישיר לפתיחת המייל עצמו ב-Gmail
+                const extractedDirectUrl = extractLinksFromPayload(msgData.payload);
+                const gmailMessageUrl = `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(currentUser.email)}#inbox/${msg.id}`;
+                const finalJobLink = extractedDirectUrl || gmailMessageUrl;
+
+                const headerPlatform = detectPlatformFromHeaders(from, subject, snippet);
+
                 const promptText = `Analyze this job email:
 From: "${from}"
 Subject: "${subject}"
 Snippet: "${snippet}"
 
-Extract: company name, job role, and status (must be one of: "saved", "applied", "interview", "offer").
-If it is not clearly a job-related application or update, respond with {"company": null}.
-Return ONLY valid JSON matching this schema: {"company": "string or null", "role": "string or null", "status": "string"}`;
+Extract:
+1. company: company name
+2. role: job role/title
+3. status: must be one of: "saved", "applied", "interview", "offer"
+4. platform: the source website/board where this job came from (e.g., "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", "Comeet", "Greenhouse", or "אתר החברה").
 
-                const geminiData = await generateWithFallback(promptText);
+If it is not clearly a job-related alert, application, or update, respond with {"company": null}.
+Return ONLY valid JSON matching this schema: {"company": "string or null", "role": "string or null", "status": "string", "platform": "string"}`;
+
+                const geminiData = await generateWithNewestModel(promptText, statusEl);
                 if (!geminiData) continue;
 
                 const aiRaw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -483,11 +659,37 @@ Return ONLY valid JSON matching this schema: {"company": "string or null", "role
                         const parsed = JSON.parse(cleaned);
                         console.log("AI Parsed Result:", parsed);
                         if (parsed.company && parsed.role) {
+                            const detectedPlatform = headerPlatform ||
+                                (parsed.platform && parsed.platform !== 'null' ? parsed.platform : 'אתר החברה');
+
+                            // בדיקה אם המשרה כבר קיימת בלוח
+                            const existingJob = jobs.find(j =>
+                                j.company?.toLowerCase().trim() === parsed.company.toLowerCase().trim() &&
+                                j.role?.toLowerCase().trim() === parsed.role.toLowerCase().trim()
+                            );
+
+                            if (existingJob) {
+                                // אם המשרה כבר קיימת בלוח אבל חסר לה קישור או שכתוב לה עדיין Gmail AI - נשדרג אותה אוטומטית!
+                                if (!existingJob.link || existingJob.platform === 'Gmail AI') {
+                                    await dbClient
+                                        .from('jobs')
+                                        .update({ platform: detectedPlatform, link: finalJobLink })
+                                        .eq('id', existingJob.id);
+                                    existingJob.platform = detectedPlatform;
+                                    existingJob.link = finalJobLink;
+                                    updatedCount++;
+                                } else {
+                                    skippedDuplicates++;
+                                }
+                                continue;
+                            }
+
                             const newJob = {
                                 company: parsed.company,
                                 role: parsed.role,
-                                platform: 'Gmail AI',
+                                platform: detectedPlatform,
                                 status: ['saved', 'applied', 'interview', 'offer'].includes(parsed.status) ? parsed.status : 'applied',
+                                link: finalJobLink,
                                 applied_date: new Date().toISOString().split('T')[0],
                                 user_id: currentUser.id
                             };
@@ -506,9 +708,14 @@ Return ONLY valid JSON matching this schema: {"company": "string or null", "role
             }
 
             renderKanban();
-            statusEl.textContent = addedCount > 0 
-                ? `הסריקה הושלמה! נוספו ${addedCount} משרות חדשות ללוח.` 
-                : 'הסריקה הושלמה, לא אותרו משרות חדשות להוספה.';
+            const usedModelName = verifiedModel ? ` (באמצעות ${verifiedModel.replace('models/', '')})` : '';
+            if (addedCount > 0 || updatedCount > 0) {
+                statusEl.textContent = `הסריקה הושלמה${usedModelName}! נוספו ${addedCount} משרות חדשות ועודכנו ${updatedCount} משרות קיימות עם קישור ומקור.`;
+            } else if (skippedDuplicates > 0) {
+                statusEl.textContent = `הסריקה הושלמה${usedModelName}. כל המשרות שנמצאו (${skippedDuplicates}) כבר מעודכנות בלוח.`;
+            } else {
+                statusEl.textContent = `הסריקה הושלמה${usedModelName}, לא אותרו משרות חדשות להוספה.`;
+            }
         } catch (err) {
             console.error('שגיאה בסריקה:', err);
             statusEl.textContent = 'שגיאה בסריקת המיילים: ' + err.message;
