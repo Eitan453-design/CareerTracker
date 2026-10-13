@@ -434,6 +434,9 @@ Return ONLY valid JSON matching this schema: {"company": "string or null", "role
                 });
 
                 const geminiData = await geminiRes.json();
+if (!geminiRes.ok) {
+    console.error("Gemini Error Details:", geminiData);
+}
                 const aiRaw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
                 if (aiRaw) {
