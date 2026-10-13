@@ -374,6 +374,29 @@
         }
     }
 
+    // פונקציה חכמה שמזהה אוטומטית איזה מודל של Gemini פתוח וזמין עבור המפתח שלך (מונע שגיאת 404)
+    async function getActiveGeminiModel() {
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+            const data = await res.json();
+            if (!res.ok) {
+                console.error("Failed to list Gemini models:", data);
+                return 'models/gemini-2.5-flash';
+            }
+            const supported = (data.models || []).filter(m =>
+                m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
+            );
+            console.log("Available Gemini Models for your key:", supported.map(m => m.name));
+
+            const flashModel = supported.find(m => m.name.includes('flash'));
+            if (flashModel) return flashModel.name;
+            if (supported.length > 0) return supported[0].name;
+        } catch (err) {
+            console.warn("Error detecting model, using fallback:", err);
+        }
+        return 'models/gemini-2.5-flash';
+    }
+
     async function scanGmailForJobs() {
         const statusEl = document.getElementById('gmailScanStatus');
         if (!currentUser) {
@@ -390,9 +413,12 @@
         }
 
         statusEl.style.display = 'block';
-        statusEl.textContent = 'סורק הודעות מ-Gmail בטווח מורחב...';
+        statusEl.textContent = 'מאתר מודל AI פעיל וסורק הודעות מ-Gmail...';
 
         try {
+            const activeModel = await getActiveGeminiModel();
+            console.log("Using Gemini Model:", activeModel);
+
             const searchTerms = [
                 'subject:(application OR applied OR interview OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות")',
                 'from:(comeet OR greenhouse OR lever OR workday OR linkedin)'
@@ -405,11 +431,11 @@
             const listData = await listRes.json();
 
             if (!listData.messages || listData.messages.length === 0) {
-                statusEl.textContent = 'לא נמצאו הודעות דרושים בחיפוש המורחב. נסה לשלוח לעצמך מייל בדיקה עם המילה application בנושא.';
+                statusEl.textContent = 'לא נמצאו הודעות דרושים בחיפוש. נסה לשלוח לעצמך מייל בדיקה עם המילה application בנושא.';
                 return;
             }
 
-            statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות Gemini AI...`;
+            statusEl.textContent = `נמצאו ${listData.messages.length} הודעות. מנתח באמצעות ${activeModel.replace('models/', '')}...`;
 
             let addedCount = 0;
 
@@ -419,13 +445,22 @@
                 });
                 const msgData = await msgRes.json();
                 const snippet = msgData.snippet || '';
+                
+                // חילוץ כותרת הנושא והשולח לדיוק מרבי
+                const headers = msgData.payload?.headers || [];
+                const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+                const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
 
-                const prompt = `Analyze this job email snippet: "${snippet}". 
+                const prompt = `Analyze this job email:
+From: "${from}"
+Subject: "${subject}"
+Snippet: "${snippet}"
+
 Extract: company name, job role, and status (must be one of: "saved", "applied", "interview", "offer").
-If it is not clearly a job-related update, respond with {"company": null}.
+If it is not clearly a job-related application or update, respond with {"company": null}.
 Return ONLY valid JSON matching this schema: {"company": "string or null", "role": "string or null", "status": "string"}`;
 
-                const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${activeModel}:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -434,28 +469,33 @@ Return ONLY valid JSON matching this schema: {"company": "string or null", "role
                 });
 
                 const geminiData = await geminiRes.json();
-if (!geminiRes.ok) {
-    console.error("Gemini Error Details:", geminiData);
-}
+                if (!geminiRes.ok) {
+                    console.error("Gemini Error Details:", geminiData);
+                    continue;
+                }
+
                 const aiRaw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
                 if (aiRaw) {
                     const cleaned = aiRaw.replace(/```json|```/g, '').trim();
                     try {
                         const parsed = JSON.parse(cleaned);
+                        console.log("AI Parsed Result:", parsed);
                         if (parsed.company && parsed.role) {
                             const newJob = {
                                 company: parsed.company,
                                 role: parsed.role,
                                 platform: 'Gmail AI',
-                                status: parsed.status || 'applied',
+                                status: ['saved', 'applied', 'interview', 'offer'].includes(parsed.status) ? parsed.status : 'applied',
                                 applied_date: new Date().toISOString().split('T')[0],
                                 user_id: currentUser.id
                             };
-                            const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
-                            if (inserted) {
+                            const { data: inserted, error: insertErr } = await dbClient.from('jobs').insert([newJob]).select();
+                            if (inserted && inserted[0]) {
                                 jobs.unshift(inserted[0]);
                                 addedCount++;
+                            } else if (insertErr) {
+                                console.warn("Supabase insert warning:", insertErr.message);
                             }
                         }
                     } catch (parseErr) {
