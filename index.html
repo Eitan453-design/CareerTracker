@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CareerPilot | AI Job Tracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -125,6 +127,13 @@
             margin-bottom: 14px;
             font-size: 13px;
         }
+
+        .status-msg {
+            font-size: 12px;
+            color: #38bdf8;
+            margin-top: 6px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -133,64 +142,66 @@
     <header>
         <div class="logo">🚀 CareerPilot AI</div>
         <div class="user-panel">
+            <span id="userStatus" style="font-size: 13px; color: #94a3b8;">אורח (מסד נתונים פעיל)</span>
             <button class="btn btn-ai" onclick="triggerAIMatch()">✨ AI התאמת משרות</button>
             <button class="btn btn-google" id="loginBtn" onclick="handleAuth()">
                 <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.49h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.87-3.04.87-2.34 0-4.32-1.58-5.03-3.71H.96v2.33C2.44 16.59 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.41 5.41 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A8.99 8.99 0 0 0 0 9c0 1.45.35 2.82.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 1.41.96 3.95l3.01 2.33c.71-2.13 2.69-3.7 5.03-3.7z"/></svg>
-                התחבר עם Google
+                <span id="loginBtnText">התחבר עם Google</span>
             </button>
         </div>
     </header>
 
     <div class="dashboard-grid">
-        <!-- Sidebar: הוספת משרה ופרופיל -->
+        <!-- Sidebar -->
         <div>
             <div class="card">
                 <h2>הוספת משרה חדשה</h2>
                 <form id="addJobForm">
                     <div class="form-group">
                         <label>שם החברה</label>
-                        <input type="text" id="company" placeholder="למשל: בינת, אלביט, צ'ק פוינט" required>
+                        <input type="text" id="company" placeholder="למשל: אלביט, בינת, אינטל" required>
                     </div>
                     <div class="form-group">
                         <label>תפקיד</label>
-                        <input type="text" id="role" placeholder="למשל: PMO / Project Manager" required>
+                        <input type="text" id="role" placeholder="למשל: PMO / מנהל פרויקטים" required>
                     </div>
                     <div class="form-group">
-                        <label>פלטפורמה / מקור</label>
+                        <label>מקור המשרה</label>
                         <select id="platform">
                             <option value="LinkedIn">LinkedIn</option>
                             <option value="AllJobs">AllJobs</option>
-                            <option value="Drushim">דרושים IL</option>
-                            <option value="Comeet">Comeet</option>
-                            <option value="חבר מביא חבר">Referral / אישי</option>
+                            <option value="דרושים IL">דרושים IL</option>
+                            <option value="חבר מביא חבר">אישי / חבר מביא חבר</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>שלב התחלתי</label>
+                        <label>שלב בלוח</label>
                         <select id="initialStatus">
                             <option value="saved">נשמר (Saved)</option>
                             <option value="applied">הוגש (Applied)</option>
                             <option value="interview">ראיון (Interview)</option>
+                            <option value="offer">הצעה (Offer)</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>קישור למשרה</label>
                         <input type="url" id="jobUrl" placeholder="https://...">
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">+ הוסף ללוח</button>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">+ שמור בענן</button>
+                    <div id="saveStatus" class="status-msg">שומר נתונים בענן...</div>
                 </form>
             </div>
 
             <div class="card">
                 <div class="ai-banner">
-                    💡 <strong>התאמת AI אישית:</strong> העלה קורות חיים או פרופיל וקבל ציוני התאמה אוטומטיים למשרות ברשת.
+                    💡 <strong>התאמת AI אישית:</strong> סרוק קורות חיים וקבל ניתוח כישורים והתאמת משרות חכמה עם Gemini.
                 </div>
                 <input type="file" id="cvFile" accept=".pdf" style="display: none;" onchange="handleCVUpload(event)">
                 <button class="btn btn-ai" style="width: 100%;" onclick="document.getElementById('cvFile').click()">📄 סרוק קורות חיים (PDF)</button>
             </div>
         </div>
 
-        <!-- Main: לוח קנבן -->
+        <!-- Kanban Board -->
         <div class="kanban-board">
             <div class="kanban-col">
                 <div class="col-title col-saved"><span>נשמר</span><span id="count-saved">0</span></div>
@@ -213,13 +224,38 @@
 </div>
 
 <script>
-    let jobs = JSON.parse(localStorage.getItem('cp_jobs')) || [
-        { id: 1, company: 'Bynet Data Communications', role: 'Project Management Officer (PMO)', platform: 'LinkedIn', status: 'applied', date: '2026-10-13', link: 'https://linkedin.com' },
-        { id: 2, company: 'Elbit Systems', role: 'Junior Telecom Project Manager', platform: 'Referral', status: 'interview', date: '2026-10-12', link: '' }
-    ];
+    // Supabase Configuration
+    const SUPABASE_URL = 'https://boxgaziweabedkqmhsao.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function saveAndRender() {
-        localStorage.setItem('cp_jobs', JSON.stringify(jobs));
+    let jobs = [];
+    let currentUser = null;
+
+    // Initialize Auth & Data
+    async function init() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+            currentUser = session.user;
+            document.getElementById('userStatus').textContent = `מחובר: ${currentUser.email}`;
+            document.getElementById('loginBtnText').textContent = 'התנתק';
+        }
+        await loadJobs();
+    }
+
+    // Load Jobs from Supabase
+    async function loadJobs() {
+        const { data, error } = await supabase
+            .from('jobs')
+            .select('*')
+            .order('id', { ascending: false });
+
+        if (error) {
+            console.warn('שגיאה בשליפה (עובר לגיבוי מקומי):', error.message);
+            jobs = JSON.parse(localStorage.getItem('cp_jobs')) || [];
+        } else if (data) {
+            jobs = data;
+        }
         renderKanban();
     }
 
@@ -243,11 +279,11 @@
                 <h4>${job.company}</h4>
                 <p>${job.role}</p>
                 <div class="meta">
-                    <span>${job.platform}</span>
-                    <span>${job.date}</span>
+                    <span>${job.platform || 'כללי'}</span>
+                    <span>${job.applied_date || ''}</span>
                 </div>
                 <div class="actions">
-                    <button class="btn-small btn-move" onclick="moveJob(${job.id})">העבר שלב ➔</button>
+                    <button class="btn-small btn-move" onclick="moveJob(${job.id}, '${job.status}')">העבר שלב ➔</button>
                     <button class="btn-small btn-del" onclick="deleteJob(${job.id})">מחק</button>
                 </div>
             `;
@@ -259,56 +295,95 @@
         });
     }
 
-    document.getElementById('addJobForm').addEventListener('submit', (e) => {
+    // Add Job to Supabase
+    document.getElementById('addJobForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const statusMsg = document.getElementById('saveStatus');
+        statusMsg.style.display = 'block';
+
         const newJob = {
-            id: Date.now(),
             company: document.getElementById('company').value,
             role: document.getElementById('role').value,
             platform: document.getElementById('platform').value,
             status: document.getElementById('initialStatus').value,
             link: document.getElementById('jobUrl').value,
-            date: new Date().toISOString().split('T')[0]
+            applied_date: new Date().toISOString().split('T')[0]
         };
-        jobs.unshift(newJob);
-        saveAndRender();
+
+        if (currentUser) {
+            newJob.user_id = currentUser.id;
+        }
+
+        const { data, error } = await supabase.from('jobs').insert([newJob]).select();
+
+        statusMsg.style.display = 'none';
+
+        if (error) {
+            console.error('שגיאה בשמירה לענן:', error.message);
+            newJob.id = Date.now();
+            jobs.unshift(newJob);
+            localStorage.setItem('cp_jobs', JSON.stringify(jobs));
+            renderKanban();
+        } else if (data) {
+            jobs.unshift(data[0]);
+            renderKanban();
+        }
+
         e.target.reset();
     });
 
-    function moveJob(id) {
+    // Move Job Status
+    async function moveJob(id, currentStatus) {
         const flow = ['saved', 'applied', 'interview', 'offer'];
-        const job = jobs.find(j => j.id === id);
-        if (!job) return;
-        const currentIndex = flow.indexOf(job.status);
+        const currentIndex = flow.indexOf(currentStatus);
         if (currentIndex < flow.length - 1) {
-            job.status = flow[currentIndex + 1];
-            saveAndRender();
+            const nextStatus = flow[currentIndex + 1];
+            
+            await supabase.from('jobs').update({ status: nextStatus }).eq('id', id);
+
+            const job = jobs.find(j => j.id === id);
+            if (job) job.status = nextStatus;
+            renderKanban();
         }
     }
 
-    function deleteJob(id) {
-        if (confirm('למחוק משרה זו?')) {
-            jobs = jobs.filter(j => j.id !== id);
-            saveAndRender();
-        }
+    // Delete Job
+    async function deleteJob(id) {
+        if (!confirm('האם למחוק משרה זו?')) return;
+        
+        await supabase.from('jobs').delete().eq('id', id);
+        jobs = jobs.filter(j => j.id !== id);
+        renderKanban();
     }
 
-    function handleAuth() {
-        alert('בשלב הבא נחבר את כפתור Google לחשבון Supabase Auth שהקמנו!');
+    // Google Auth Handler
+    async function handleAuth() {
+        if (currentUser) {
+            await supabase.auth.signOut();
+            location.reload();
+        } else {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin
+                }
+            });
+            if (error) alert('שגיאה בהתחברות: ' + error.message);
+        }
     }
 
     function handleCVUpload(event) {
         const file = event.target.files[0];
         if (file) {
-            alert(`קובץ ${file.name} נטען בהצלחה! בשלב ה-AI נחבר אותו ל-Gemini API לחילוץ כישורים והתאמת משרות.`);
+            alert(`קובץ ${file.name} נטען בהצלחה! השלב הבא: חיבור Gemini API לניתוח טקסט והתאמת משרות.`);
         }
     }
 
     function triggerAIMatch() {
-        alert('סריקת משרות חכמות: ה-AI יסרוק משרות PMO ופרויקטים המתאימות לפרופיל שלך.');
+        alert('מנוע ה-AI יסרוק משרות מתאימות על פי הכישורים שלך.');
     }
 
-    renderKanban();
+    init();
 </script>
 
 </body>
