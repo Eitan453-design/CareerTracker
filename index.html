@@ -2,14 +2,14 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CareerTracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-main: #000000;
-            --bg-surface: rgba(28, 28, 30, 0.75);
+            --bg-surface: rgba(28, 28, 30, 0.85);
             --bg-card: #1c1c1e;
             --bg-card-hover: #2c2c2e;
             --border-subtle: rgba(255, 255, 255, 0.1);
@@ -20,26 +20,47 @@
             --ios-green: #30d158;
             --ios-orange: #ff9f0a;
             --ios-red: #ff453a;
+            --ios-purple: #bf5af2;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Assistant', sans-serif;
             background-color: var(--bg-main);
             background-image: 
-                radial-gradient(at 20% 0%, rgba(10, 132, 255, 0.15) 0px, transparent 50%),
-                radial-gradient(at 80% 0%, rgba(94, 92, 230, 0.15) 0px, transparent 50%);
+                radial-gradient(at 20% 0%, rgba(10, 132, 255, 0.12) 0px, transparent 50%),
+                radial-gradient(at 80% 0%, rgba(94, 92, 230, 0.12) 0px, transparent 50%);
             color: var(--text-primary);
             min-height: 100vh;
-            padding: 20px 24px;
             overflow-x: hidden;
         }
 
-        .container { max-width: 1320px; margin: 0 auto; }
+        /* במחשב: מסך נעול ללא גלילה כללית */
+        @media (min-width: 1025px) {
+            body.app-active {
+                height: 100vh;
+                overflow: hidden;
+            }
+            .app-container {
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                padding: 16px 24px;
+            }
+            .board-container {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+        }
 
-        /* --- עמוד נחיתה בסגנון Apple --- */
+        .container { max-width: 1360px; margin: 0 auto; width: 100%; }
+
+        /* --- עמוד נחיתה --- */
         #landingView {
-            min-height: calc(100vh - 40px);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -71,14 +92,14 @@
             color: #ffffff;
         }
         .hero-title-sub {
-            font-size: 34px;
+            font-size: 32px;
             font-weight: 600;
             color: #d1d1d6;
             display: inline-block;
             margin-top: 8px;
         }
         .hero-title-accent {
-            font-size: 52px;
+            font-size: 50px;
             font-weight: 800;
             background: linear-gradient(135deg, #38bdf8 0%, #a855f7 100%);
             -webkit-background-clip: text;
@@ -87,19 +108,19 @@
             margin-top: 10px;
         }
         .hero-subtitle {
-            font-size: 20px;
+            font-size: 19px;
             font-weight: 400;
             color: var(--text-secondary);
             max-width: 640px;
             line-height: 1.5;
-            margin-bottom: 42px;
+            margin-bottom: 40px;
         }
         .hero-actions {
             display: flex;
             gap: 16px;
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 64px;
+            margin-bottom: 60px;
         }
         .btn-apple-primary {
             background: #ffffff;
@@ -116,7 +137,7 @@
             transition: transform 0.2s ease, opacity 0.2s ease;
             font-family: inherit;
         }
-        .btn-apple-primary:hover { transform: scale(1.03); opacity: 0.95; }
+        .btn-apple-primary:hover { transform: scale(1.02); opacity: 0.95; }
         .btn-apple-secondary {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
@@ -130,7 +151,7 @@
             transition: all 0.2s ease;
             font-family: inherit;
         }
-        .btn-apple-secondary:hover { background: rgba(255, 255, 255, 0.16); transform: scale(1.03); }
+        .btn-apple-secondary:hover { background: rgba(255, 255, 255, 0.16); }
 
         .features-showcase {
             display: grid;
@@ -145,190 +166,147 @@
             backdrop-filter: blur(30px);
             border: 1px solid var(--border-subtle);
             border-radius: 24px;
-            padding: 28px;
+            padding: 26px;
         }
-        .showcase-icon {
-            font-size: 32px;
-            margin-bottom: 14px;
-            display: block;
-        }
-        .showcase-card h3 { font-size: 19px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
-        .showcase-card p { font-size: 15px; color: var(--text-secondary); line-height: 1.5; }
+        .showcase-icon { font-size: 32px; margin-bottom: 12px; display: block; }
+        .showcase-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .showcase-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
 
-        /* --- סרגל עליון בסגנון iOS --- */
+        /* --- סרגל עליון --- */
         #appView { display: none; }
         .ios-navbar {
-            position: sticky;
-            top: 12px;
-            z-index: 50;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 24px;
+            padding: 12px 20px;
             background: rgba(28, 28, 30, 0.75);
             backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border-radius: 20px;
+            border-radius: 18px;
             border: 1px solid var(--border-subtle);
-            margin-bottom: 24px;
+            margin-bottom: 14px;
             flex-wrap: wrap;
-            gap: 14px;
+            gap: 12px;
         }
-        .brand-area {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .logo {
-            font-size: 21px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            color: var(--text-primary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .brand-area { display: flex; align-items: center; gap: 12px; }
+        .logo { font-size: 20px; font-weight: 800; cursor: pointer; }
         .user-pill {
             font-size: 13px;
             color: var(--text-secondary);
             background: rgba(255, 255, 255, 0.06);
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 999px;
         }
 
-        .action-bar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+        .action-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .ios-btn {
             cursor: pointer;
             border-radius: 999px;
             border: none;
-            padding: 10px 18px;
-            font-size: 14px;
+            padding: 8px 16px;
+            font-size: 13px;
             font-weight: 600;
             font-family: inherit;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            gap: 6px;
             transition: all 0.2s ease;
         }
         .ios-btn:active { transform: scale(0.97); }
         .ios-btn-blue { background: var(--ios-blue); color: #fff; }
-        .ios-btn-blue:hover { background: #0070e0; }
         .ios-btn-indigo { background: linear-gradient(135deg, #5e5ce6, #bf5af2); color: #fff; }
-        .ios-btn-indigo:hover { opacity: 0.92; }
-        .ios-btn-glass {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-            border: 1px solid var(--border-subtle);
-        }
-        .ios-btn-glass:hover { background: rgba(255, 255, 255, 0.16); }
+        .ios-btn-glass { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid var(--border-subtle); }
 
-        /* --- הודעת סטטוס --- */
         #statusBanner {
             display: none;
             background: rgba(10, 132, 255, 0.15);
             border: 1px solid rgba(10, 132, 255, 0.35);
             color: #64d2ff;
-            padding: 12px 20px;
-            border-radius: 16px;
-            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 14px;
+            font-size: 13px;
             font-weight: 600;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             text-align: center;
         }
 
-        /* --- פופ-אפ התראה צף למשרות חדשות (Toast) --- */
-        #jobToast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: rgba(28, 28, 30, 0.95);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(48, 209, 88, 0.4);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-            border-radius: 20px;
-            padding: 16px 20px;
-            z-index: 99;
+        /* --- מובייל Tabs --- */
+        .mobile-tabs {
             display: none;
-            align-items: center;
-            gap: 14px;
-            animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            max-width: 420px;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
         }
-        @keyframes slideInUp {
-            from { transform: translateY(100px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        #jobToast .toast-content { flex: 1; }
-        #jobToast .toast-title { font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 2px; }
-        #jobToast .toast-sub { font-size: 13px; color: var(--text-secondary); }
-        #jobToast .toast-btn {
-            background: var(--ios-green);
-            color: #000;
-            font-weight: 700;
-            border: none;
-            border-radius: 999px;
-            padding: 8px 14px;
-            font-size: 13px;
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+            flex: 1;
+            justify-content: center;
+        }
+        .tab-btn.active {
+            background: #ffffff;
+            color: #000000;
+            border-color: #ffffff;
+            font-weight: 700;
+        }
+        .tab-count {
+            background: rgba(0, 0, 0, 0.15);
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+        .tab-btn.active .tab-count {
+            background: rgba(0, 0, 0, 0.1);
+            color: #000;
         }
 
-        /* הדגשה זוהרת לכרטיסייה חדשה */
-        .highlight-pulse {
-            animation: pulseCard 1.8s ease-in-out infinite alternate;
-        }
-        @keyframes pulseCard {
-            from { box-shadow: 0 0 10px rgba(10, 132, 255, 0.4); border-color: var(--ios-blue); }
-            to { box-shadow: 0 0 24px rgba(48, 209, 88, 0.7); border-color: var(--ios-green); }
-        }
-
-        /* --- לוח קנבן --- */
+        /* --- לוח הקנבן --- */
         .kanban-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 18px;
+            gap: 14px;
+            flex: 1;
+            min-height: 0;
         }
-        @media (max-width: 1024px) { .kanban-board { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 640px) {
-            .kanban-board { grid-template-columns: 1fr; }
-            .hero-title { font-size: 30px; }
-            .hero-title-sub { font-size: 22px; }
-            .hero-title-accent { font-size: 34px; }
-        }
-
         .kanban-col {
             background: rgba(28, 28, 30, 0.5);
             backdrop-filter: blur(20px);
             border: 1px solid var(--border-subtle);
-            border-radius: 22px;
-            padding: 18px;
-            min-height: 620px;
+            border-radius: 20px;
+            padding: 14px;
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
         .col-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
             border-bottom: 1px solid var(--border-subtle);
         }
         .col-title-text {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-        .dot-saved { background: #8e8e93; }
+        .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .dot-discovered { background: #38bdf8; }
         .dot-applied { background: var(--ios-blue); }
         .dot-interview { background: var(--ios-orange); }
         .dot-offer { background: var(--ios-green); }
@@ -336,168 +314,227 @@
         .col-count {
             background: rgba(255, 255, 255, 0.08);
             color: var(--text-secondary);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
-            padding: 2px 10px;
+            padding: 2px 8px;
             border-radius: 999px;
         }
 
-        /* --- כרטיסיית משרה --- */
+        /* רשימה פנימית נגללת */
+        .col-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 2px;
+            min-height: 0;
+        }
+        .col-list::-webkit-scrollbar { width: 5px; }
+        .col-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 999px; }
+
+        /* כרטיסיית משרה */
         .job-card {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
-            border-radius: 18px;
-            padding: 16px;
-            margin-bottom: 12px;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 10px;
             cursor: pointer;
-            transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+            transition: transform 0.15s ease, background 0.15s ease;
         }
         .job-card:hover {
             background: var(--bg-card-hover);
             transform: translateY(-2px);
             border-color: rgba(255, 255, 255, 0.2);
         }
-        .job-card h4 {
-            font-size: 17px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-        .job-card p {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
-            line-height: 1.4;
-        }
-        .job-card .meta {
+        .job-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+        .job-card p { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4; }
+        
+        /* תגיות משרה */
+        .tag-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            font-size: 12px;
-            color: var(--text-secondary);
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
         }
-        .platform-badge {
-            background: rgba(10, 132, 255, 0.14);
-            color: #64d2ff;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
+        .tag-badge {
+            font-size: 11px;
             font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #d1d1d6;
         }
+        .tag-platform { background: rgba(10, 132, 255, 0.14); color: #64d2ff; }
+        .tag-jobtype { background: rgba(191, 90, 242, 0.14); color: #d8b4fe; }
+
         .card-actions {
             display: flex;
             justify-content: space-between;
-            gap: 8px;
+            gap: 6px;
             padding-top: 8px;
             border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
         .btn-card-action {
-            flex: 1;
-            padding: 7px 10px;
+            padding: 6px 8px;
             font-size: 12px;
             font-weight: 600;
-            border-radius: 10px;
+            border-radius: 9px;
             border: none;
             cursor: pointer;
             font-family: inherit;
-            transition: 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
         }
-        .btn-move { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
-        .btn-move:hover { background: rgba(255, 255, 255, 0.15); }
-        .btn-del { background: rgba(255, 69, 58, 0.12); color: var(--ios-red); flex: 0 0 auto; }
-        .btn-del:hover { background: var(--ios-red); color: #fff; }
+        .btn-apply-fast { background: var(--ios-blue); color: #fff; width: 100%; margin-bottom: 6px; padding: 7px 10px; }
+        .btn-move { background: rgba(10, 132, 255, 0.12); color: #64d2ff; flex: 1; }
+        .btn-move:hover { background: var(--ios-blue); color: #fff; }
+        .btn-back { background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); flex: 1; }
+        .btn-del { background: rgba(255, 69, 58, 0.12); color: var(--ios-red); }
 
-        .empty-state {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-top: 60px;
-            opacity: 0.6;
+        .empty-state { text-align: center; color: var(--text-secondary); font-size: 13px; margin-top: 40px; opacity: 0.6; }
+
+        /* --- מודעות שנמחקו --- */
+        .trash-section {
+            margin-top: 12px;
+            background: rgba(28, 28, 30, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 12px 16px;
+        }
+        .trash-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .trash-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+        .trash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+        .trash-card {
+            background: rgba(44, 44, 46, 0.6);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .trash-card-info h5 { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+        .trash-card-info p { font-size: 11px; color: var(--text-secondary); }
+        .trash-actions { display: flex; gap: 6px; }
+        .btn-restore {
+            background: rgba(48, 209, 88, 0.15);
+            color: var(--ios-green);
+            border: none;
+            border-radius: 8px;
+            padding: 5px 9px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .btn-trash-del { background: rgba(255, 69, 58, 0.12); color: var(--ios-red); border: none; border-radius: 8px; padding: 5px 8px; font-size: 12px; cursor: pointer; }
+
+        /* רספונסיביות במובייל */
+        @media (max-width: 1024px) {
+            body { padding: 12px; }
+            .mobile-tabs { display: flex; }
+            .kanban-board { display: block; }
+            .kanban-col { display: none; height: calc(100vh - 190px); }
+            .kanban-col.mobile-active { display: flex; }
+            .hero-title { font-size: 32px; }
+            .hero-title-sub { font-size: 22px; }
+            .hero-title-accent { font-size: 36px; }
         }
 
-        /* --- חלוניות Modals --- */
+        /* Toast ו-Modals */
+        #jobToast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(48, 209, 88, 0.4);
+            border-radius: 18px;
+            padding: 14px 18px;
+            z-index: 99;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            max-width: 380px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        #jobToast .toast-content { flex: 1; }
+        #jobToast .toast-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+        #jobToast .toast-sub { font-size: 12px; color: var(--text-secondary); }
+        #jobToast .toast-btn {
+            background: var(--ios-green);
+            color: #000;
+            font-weight: 700;
+            border: none;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
         .modal-overlay {
             position: fixed;
             inset: 0;
             background: rgba(0, 0, 0, 0.65);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             display: none;
             justify-content: center;
             align-items: center;
             z-index: 100;
-            padding: 20px;
+            padding: 16px;
         }
         .modal-box {
             background: #1c1c1e;
             border: 1px solid var(--border-subtle);
-            border-radius: 24px;
+            border-radius: 22px;
             width: 100%;
-            max-width: 500px;
-            padding: 28px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            max-width: 480px;
+            padding: 24px;
         }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .modal-header h3 { font-size: 20px; font-weight: 700; }
-        .close-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: var(--text-secondary);
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .form-group { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
-        label { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-header h3 { font-size: 18px; font-weight: 700; }
+        .close-btn { background: rgba(255, 255, 255, 0.1); border: none; color: var(--text-secondary); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
         input, select, textarea {
             background: #2c2c2e;
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: var(--text-primary);
-            padding: 12px 14px;
+            padding: 10px 12px;
             border-radius: 12px;
             font-family: inherit;
-            font-size: 15px;
+            font-size: 14px;
         }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ios-blue); }
-        textarea { min-height: 120px; resize: vertical; }
-
-        /* חלונית פרטי משרה ייעודית */
+        textarea { min-height: 100px; resize: vertical; }
         .job-detail-snippet {
             background: #2c2c2e;
-            border-radius: 14px;
-            padding: 14px;
-            font-size: 14px;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 13px;
             color: #d1d1d6;
-            line-height: 1.6;
-            margin-top: 14px;
-            max-height: 180px;
+            line-height: 1.5;
+            margin-top: 12px;
+            max-height: 160px;
             overflow-y: auto;
-            border: 1px solid rgba(255, 255, 255, 0.05);
             white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- מסך פתיחה -->
+<div class="container app-container">
+    <!-- עמוד נחיתה -->
     <div id="landingView">
-        <div class="apple-pill">🚀 CareerTracker • מופעל באמצעות Gemini</div>
+        <div class="apple-pill">🚀 CareerTracker • Zero-Touch Job Pilot</div>
         <h1 class="hero-title">
-            שולחים קורות חיים לכל כיוון ומאבדים מעקב?<br>
-            <span class="hero-title-sub">הכלי שאוסף ומסדר עבורכם את כל המועמדויות במקום אחד.</span><br>
-            <span class="hero-title-accent">פשוט, חכם ואוטומטי.</span>
+            ניהול מועמדויות ואיתור משרות<br>
+            <span class="hero-title-sub">בסנכרון מלא ואוטומטי מול תיבת המייל שלכם.</span><br>
+            <span class="hero-title-accent">פשוט, חכם וללא מאמץ.</span>
         </h1>
         <p class="hero-subtitle">
-            המערכת סורקת עבורך את המיילים בכל כניסה לאתר, מזהה מאיזה אתר הגיעה כל משרה, מצרפת קישור ישיר ומסדרת הכל בלוח אישי.
+            ה-AI סורק עבורך את ה-Gmail, ממיין משרות שהוגשו מול הזדמנויות חדשות, שולף קישור ישיר להגשה ומעדכן את הלוח בזמן אמת.
         </p>
 
         <div class="hero-actions">
@@ -506,115 +543,142 @@
                 <span>המשך עם Google</span>
             </button>
             <button class="btn-apple-secondary" onclick="enterGuestMode()">
-                כניסה מהירה כאורח
+                כניסה כאורח (מקומי)
             </button>
         </div>
 
         <div class="features-showcase">
             <div class="showcase-card">
-                <span class="showcase-icon">📬</span>
-                <h3>סריקה אוטומטית שקטה</h3>
-                <p>בכל פעם שתיכנס לאתר, ה-AI יסרוק ברקע את ה-Gmail ויתריע בפופ-אפ עדין על כל משרה או תגובה חדשה.</p>
+                <span class="showcase-icon">⚡</span>
+                <h3>אוטומציה מלאה (Zero-Touch)</h3>
+                <p>האתר סורק בעצמו ברקע, מסווג משרות ומקדם שלבים לפי תשובות המעסיקים.</p>
             </div>
             <div class="showcase-card">
-                <span class="showcase-icon">🔍</span>
-                <h3>תצוגת מודעה ומייל מלאה</h3>
-                <p>לחיצה על כל כרטיסייה פותחת את תוכן המייל המלא עם קישור ישיר למודעה באתר הדרושים או ב-Gmail.</p>
+                <span class="showcase-icon">📱</span>
+                <h3>מותאם לנייד באגודל</h3>
+                <p>חוויית מובייל מלאה עם לשוניות עליונות ומעבר חלק בין העמודות.</p>
             </div>
             <div class="showcase-card">
-                <span class="showcase-icon">🔒</span>
-                <h3>פרטיות מלאה בענן</h3>
-                <p>המשרות שלך שייכות לחשבון האישי שלך בלבד ומוצגות רק לאחר התחברות מאובטחת.</p>
+                <span class="showcase-icon">🎯</span>
+                <h3>תגיות חכמות וסוג משרה</h3>
+                <p>זיהוי אוטומטי של משרה מלאה, סטודנט, היברידי וקישור ישיר למודעה.</p>
             </div>
         </div>
     </div>
 
     <!-- לוח ראשי -->
-    <div id="appView">
+    <div id="appView" class="board-container">
         <nav class="ios-navbar">
             <div class="brand-area">
-                <div class="logo" onclick="showLandingPage()" title="חזרה למסך הפתיחה">🚀 CareerTracker</div>
+                <div class="logo" onclick="showLandingPage()">🚀 CareerTracker</div>
                 <span id="userStatus" class="user-pill">טוען...</span>
             </div>
 
             <div class="action-bar">
-                <button class="ios-btn ios-btn-blue" onclick="scanGmailForJobs(false)">📬 סרוק כעת מ-Gmail</button>
-                <button class="ios-btn ios-btn-indigo" onclick="openModal('pasteModal')">✉️ מייל אחר / הדבקה חכמה</button>
-                <button class="ios-btn ios-btn-glass" onclick="openModal('addModal')">➕ הוסף משרה</button>
+                <button class="ios-btn ios-btn-blue" onclick="scanGmailForJobs(false)">📬 סרוק Gmail כעת</button>
+                <button class="ios-btn ios-btn-indigo" onclick="openModal('pasteModal')">✨ הדבקה חכמה</button>
+                <button class="ios-btn ios-btn-glass" onclick="openModal('addModal')">➕ הוסף ידנית</button>
                 <button class="ios-btn ios-btn-glass" id="authBtn" onclick="handleAuth()">התנתק</button>
             </div>
         </nav>
 
         <div id="statusBanner"></div>
 
+        <!-- לשוניות מובייל -->
+        <div class="mobile-tabs" id="mobileTabs">
+            <button class="tab-btn active" onclick="switchMobileTab('discovered')">
+                💡 הזדמנויות <span class="tab-count" id="mcount-discovered">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchMobileTab('applied')">
+                📩 הוגש <span class="tab-count" id="mcount-applied">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchMobileTab('interview')">
+                🎙️ ראיונות <span class="tab-count" id="mcount-interview">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchMobileTab('offer')">
+                🏆 הצעות <span class="tab-count" id="mcount-offer">0</span>
+            </button>
+        </div>
+
+        <!-- 4 עמודות כרונולוגיות -->
         <div class="kanban-board">
-            <div class="kanban-col">
+            <!-- 1. הזדמנויות חדשות -->
+            <div class="kanban-col mobile-active" id="col-box-discovered">
                 <div class="col-header">
-                    <span class="col-title-text"><span class="dot dot-saved"></span> נשמר</span>
-                    <span class="col-count" id="count-saved">0</span>
+                    <span class="col-title-text"><span class="dot dot-discovered"></span> 💡 הזדמנויות חדשות</span>
+                    <span class="col-count" id="count-discovered">0</span>
                 </div>
-                <div id="col-saved-list"></div>
+                <div class="col-list" id="col-discovered-list"></div>
             </div>
 
-            <div class="kanban-col">
+            <!-- 2. הוגש קו"ח -->
+            <div class="kanban-col" id="col-box-applied">
                 <div class="col-header">
-                    <span class="col-title-text"><span class="dot dot-applied"></span> הוגש</span>
+                    <span class="col-title-text"><span class="dot dot-applied"></span> 📩 הוגש קו״ח</span>
                     <span class="col-count" id="count-applied">0</span>
                 </div>
-                <div id="col-applied-list"></div>
+                <div class="col-list" id="col-applied-list"></div>
             </div>
 
-            <div class="kanban-col">
+            <!-- 3. ראיונות -->
+            <div class="kanban-col" id="col-box-interview">
                 <div class="col-header">
-                    <span class="col-title-text"><span class="dot dot-interview"></span> ראיונות</span>
+                    <span class="col-title-text"><span class="dot dot-interview"></span> 🎙️ ראיונות ומיון</span>
                     <span class="col-count" id="count-interview">0</span>
                 </div>
-                <div id="col-interview-list"></div>
+                <div class="col-list" id="col-interview-list"></div>
             </div>
 
-            <div class="kanban-col">
+            <!-- 4. הצעות -->
+            <div class="kanban-col" id="col-box-offer">
                 <div class="col-header">
-                    <span class="col-title-text"><span class="dot dot-offer"></span> הצעות</span>
+                    <span class="col-title-text"><span class="dot dot-offer"></span> 🏆 הצעות שכר</span>
                     <span class="col-count" id="count-offer">0</span>
                 </div>
-                <div id="col-offer-list"></div>
+                <div class="col-list" id="col-offer-list"></div>
             </div>
+        </div>
+
+        <!-- אזור מודעות שנמחקו -->
+        <div class="trash-section" id="trashSection">
+            <div class="trash-header" onclick="toggleTrashView()">
+                <div class="trash-title">
+                    <span>🗑️ מודעות שנמחקו</span>
+                    <span class="col-count" id="trashCount">0</span>
+                </div>
+                <span id="trashToggleArrow" style="font-size: 13px; color: var(--text-secondary);">הצג ▼</span>
+            </div>
+            <div class="trash-grid" id="trashList" style="display: none;"></div>
         </div>
     </div>
 </div>
 
-<!-- פופ-אפ צף להתראה על משרות חדשות (Toast) -->
+<!-- פופ-אפ התראה -->
 <div id="jobToast">
     <div class="toast-content">
-        <div class="toast-title" id="toastTitle">🎉 נמצאו משרות חדשות!</div>
-        <div class="toast-sub" id="toastSub">ה-AI סרק את ה-Gmail ועדכן את הלוח שלך.</div>
+        <div class="toast-title" id="toastTitle">🎉 עדכונים חדשים!</div>
+        <div class="toast-sub" id="toastSub">הלוח עודכן בהצלחה מול ה-Gmail.</div>
     </div>
-    <button class="toast-btn" id="toastActionBtn" onclick="focusOnNewJobs()">הצג בלוח 👀</button>
+    <button class="toast-btn" onclick="document.getElementById('jobToast').style.display='none'">הבנתי 👍</button>
 </div>
 
-<!-- חלונית הצגת פרטי משרה מלאים -->
+<!-- חלונית פרטי משרה -->
 <div class="modal-overlay" id="jobDetailModal">
     <div class="modal-box">
         <div class="modal-header">
             <h3 id="modalJobCompany">חברה</h3>
             <button class="close-btn" onclick="closeModal('jobDetailModal')">✕</button>
         </div>
-        <div style="margin-bottom: 12px;">
-            <div style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="modalJobRole">תפקיד</div>
-            <div style="display: flex; gap: 8px; align-items: center; font-size: 13px;">
-                <span class="platform-badge" id="modalJobPlatform">פלטפורמה</span>
-                <span style="color: var(--text-secondary);" id="modalJobDate">תאריך</span>
-                <span style="color: var(--text-secondary); margin-right: auto;" id="modalJobStatus">סטטוס</span>
-            </div>
+        <div>
+            <div style="font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="modalJobRole">תפקיד</div>
+            <div class="tag-row" id="modalTags"></div>
         </div>
-        
-        <div style="margin-top: 14px;">
-            <label>תוכן / תקציר המייל שהתקבל:</label>
-            <div class="job-detail-snippet" id="modalJobSnippet">אין תקציר זמין.</div>
+        <div style="margin-top: 10px;">
+            <label>תקציר המייל / העדכון האחרון:</label>
+            <div class="job-detail-snippet" id="modalJobSnippet">אין מידע נוסף.</div>
         </div>
-
-        <div style="margin-top: 20px; display: flex; gap: 10px;">
-            <a id="modalJobLink" href="#" target="_blank" rel="noopener noreferrer" class="ios-btn ios-btn-blue" style="flex: 1; justify-content: center; text-decoration: none; padding: 14px;">
+        <div style="margin-top: 18px; display: flex; gap: 8px;">
+            <a id="modalJobLink" href="#" target="_blank" rel="noopener noreferrer" class="ios-btn ios-btn-blue" style="flex: 1; justify-content: center; text-decoration: none; padding: 12px;">
                 🔗 מעבר ישיר למודעה / למייל ↗
             </a>
             <button class="ios-btn ios-btn-glass" onclick="closeModal('jobDetailModal')">סגור</button>
@@ -626,43 +690,40 @@
 <div class="modal-overlay" id="addModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>➕ הוספת משרה חדשה</h3>
+            <h3>➕ הוספת משרה</h3>
             <button class="close-btn" onclick="closeModal('addModal')">✕</button>
         </div>
         <form id="addJobForm">
             <div class="form-group">
                 <label>שם החברה</label>
-                <input type="text" id="company" placeholder="למשל: אלביט, אינטל, התעשייה האווירית" required>
+                <input type="text" id="company" placeholder="למשל: אלביט, אינטל" required>
             </div>
             <div class="form-group">
                 <label>תפקיד</label>
-                <input type="text" id="role" placeholder="למשל: מהנדס תעשייה וניהול / PMO" required>
+                <input type="text" id="role" placeholder="למשל: מהנדס תעשייה וניהול" required>
             </div>
             <div class="form-group">
-                <label>מאיזה אתר הגיעה המשרה?</label>
-                <select id="platform">
-                    <option value="LinkedIn">LinkedIn</option>
-                    <option value="AllJobs">AllJobs</option>
-                    <option value="דרושים IL">דרושים IL</option>
-                    <option value="JobMaster">JobMaster</option>
-                    <option value="אתר החברה">אתר החברה</option>
-                    <option value="חבר מביא חבר">אישי / חבר מביא חבר</option>
+                <label>סוג משרה</label>
+                <select id="jobType">
+                    <option value="משרה מלאה">משרה מלאה</option>
+                    <option value="משרת סטודנט">משרת סטודנט</option>
+                    <option value="משרה חלקית">משרה חלקית</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>שלב בלוח</label>
                 <select id="initialStatus">
-                    <option value="saved">נשמר (Saved)</option>
-                    <option value="applied">הוגש (Applied)</option>
-                    <option value="interview">ראיון (Interview)</option>
-                    <option value="offer">הצעה (Offer)</option>
+                    <option value="discovered">💡 הזדמנות חדשה</option>
+                    <option value="applied">📩 הוגש קו״ח</option>
+                    <option value="interview">🎙️ ראיון</option>
+                    <option value="offer">🏆 הצעה</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>קישור למודעה (אופציונלי)</label>
                 <input type="url" id="jobUrl" placeholder="https://...">
             </div>
-            <button type="submit" class="ios-btn ios-btn-blue" style="width: 100%; justify-content: center; margin-top: 10px; padding: 14px;">שמור משרה בלוח</button>
+            <button type="submit" class="ios-btn ios-btn-blue" style="width: 100%; justify-content: center; margin-top: 8px; padding: 12px;">שמור משרה</button>
         </form>
     </div>
 </div>
@@ -671,17 +732,14 @@
 <div class="modal-overlay" id="pasteModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>✨ הוספה חכמה מכל תיבת מייל</h3>
+            <h3>✨ הדבקה חכמה מכל מייל</h3>
             <button class="close-btn" onclick="closeModal('pasteModal')">✕</button>
         </div>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
-            משתמש ב-<strong>Outlook, iCloud, Yahoo או וואלה</strong>? העתק את תוכן המייל או את טקסט המשרה והדבק כאן. ה-AI יזהה לבד את החברה, התפקיד, האתר והקישור!
-        </p>
         <div class="form-group">
             <label>תוכן המייל או המודעה</label>
-            <textarea id="pastedEmailContent" placeholder="הדבק כאן את תוכן המייל או את פרטי המשרה..."></textarea>
+            <textarea id="pastedEmailContent" placeholder="הדבק כאן את תוכן המייל..."></textarea>
         </div>
-        <button class="ios-btn ios-btn-indigo" style="width: 100%; justify-content: center; margin-top: 8px; padding: 14px;" onclick="analyzePastedEmail()">פענח והוסף ללוח באמצעות AI ✨</button>
+        <button class="ios-btn ios-btn-indigo" style="width: 100%; justify-content: center; padding: 12px;" onclick="analyzePastedEmail()">פענח באמצעות AI ✨</button>
     </div>
 </div>
 
@@ -693,10 +751,11 @@
     const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
     let jobs = [];
+    let deletedJobs = [];
     let currentUser = null;
-    let newlyAddedJobIds = [];
     let verifiedModel = null;
     let sortedCandidateModels = null;
+    const FLOW = ['discovered', 'applied', 'interview', 'offer'];
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -707,66 +766,36 @@
         banner.textContent = text;
     }
 
-    function showToast(title, sub, buttonText = 'הצג בלוח 👀') {
+    function showToast(title, sub) {
         const toast = document.getElementById('jobToast');
         document.getElementById('toastTitle').textContent = title;
         document.getElementById('toastSub').textContent = sub;
-        document.getElementById('toastActionBtn').textContent = buttonText;
         toast.style.display = 'flex';
-        setTimeout(() => { toast.style.display = 'none'; }, 9000);
+        setTimeout(() => { toast.style.display = 'none'; }, 8000);
     }
 
-    function focusOnNewJobs() {
-        document.getElementById('jobToast').style.display = 'none';
-        newlyAddedJobIds.forEach(id => {
-            const el = document.getElementById(`job-card-${id}`);
-            if (el) {
-                el.classList.add('highlight-pulse');
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        });
-        setTimeout(() => {
-            newlyAddedJobIds.forEach(id => {
-                const el = document.getElementById(`job-card-${id}`);
-                if (el) el.classList.remove('highlight-pulse');
-            });
-        }, 5000);
-    }
+    function switchMobileTab(status) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
 
-    function openJobDetails(jobId) {
-        const job = jobs.find(j => j.id === jobId);
-        if (!job) return;
-
-        document.getElementById('modalJobCompany').textContent = job.company;
-        document.getElementById('modalJobRole').textContent = job.role;
-        document.getElementById('modalJobPlatform').textContent = `🌐 ${job.platform || 'אתר החברה'}`;
-        document.getElementById('modalJobDate').textContent = job.applied_date ? `תאריך: ${job.applied_date}` : '';
-        
-        const statusMap = { saved: 'נשמר', applied: 'הוגש', interview: 'ראיונות', offer: 'הצעה' };
-        document.getElementById('modalJobStatus').textContent = `סטטוס: ${statusMap[job.status] || job.status}`;
-        document.getElementById('modalJobSnippet').textContent = job.snippet || job.notes || 'פרטי משרה שנשמרו בהצלחה במערכת.';
-
-        const linkBtn = document.getElementById('modalJobLink');
-        if (job.link) {
-            linkBtn.href = job.link;
-            linkBtn.style.display = 'inline-flex';
-            linkBtn.textContent = job.link.includes('mail.google.com') ? '📩 פתח מייל מקורי ב-Gmail ↗' : '🔗 מעבר ישיר למודעה באתר ↗';
-        } else {
-            linkBtn.style.display = 'none';
-        }
-
-        openModal('jobDetailModal');
+        document.querySelectorAll('.kanban-col').forEach(col => col.classList.remove('mobile-active'));
+        const targetCol = document.getElementById(`col-box-${status}`);
+        if (targetCol) targetCol.classList.add('mobile-active');
     }
 
     function showDashboardView() {
+        document.body.classList.add('app-active');
         document.getElementById('landingView').style.display = 'none';
-        document.getElementById('appView').style.display = 'block';
+        document.getElementById('appView').style.display = 'flex';
     }
 
     function showLandingPage() {
+        document.body.classList.remove('app-active');
         if (!currentUser) {
             jobs = [];
+            deletedJobs = [];
             renderKanban();
+            renderTrash();
         }
         document.getElementById('appView').style.display = 'none';
         document.getElementById('landingView').style.display = 'flex';
@@ -774,7 +803,7 @@
 
     async function enterGuestMode() {
         currentUser = null;
-        document.getElementById('userStatus').textContent = '👤 מצב אורח (פרטי למחשב זה)';
+        document.getElementById('userStatus').textContent = '👤 אורח (פרטי למכשיר זה)';
         document.getElementById('authBtn').textContent = 'התחבר עם Google';
         showDashboardView();
         await loadJobs();
@@ -800,14 +829,9 @@
                 showDashboardView();
                 await loadJobs();
 
-                // סריקה אוטומטית שקטה ברקע בכל כניסה לאתר
-                setTimeout(() => {
-                    scanGmailForJobs(true);
-                }, 1500);
+                setTimeout(() => { scanGmailForJobs(true); }, 1500);
             } else {
                 currentUser = null;
-                jobs = [];
-                renderKanban();
                 showLandingPage();
             }
         } catch (e) {
@@ -815,7 +839,14 @@
         }
     }
 
+    function getTrashKey() {
+        return currentUser ? `cp_trash_${currentUser.id}` : 'cp_trash_guest';
+    }
+
     async function loadJobs() {
+        deletedJobs = JSON.parse(localStorage.getItem(getTrashKey())) || [];
+        renderTrash();
+
         if (!currentUser) {
             jobs = JSON.parse(localStorage.getItem('cp_guest_jobs')) || [];
             renderKanban();
@@ -828,54 +859,250 @@
             .eq('user_id', currentUser.id)
             .order('id', { ascending: false });
 
-        jobs = (!error && data) ? data : [];
+        jobs = (!error && data) ? data.map(j => ({ ...j, status: j.status === 'saved' ? 'discovered' : j.status })) : [];
         renderKanban();
     }
 
     function renderKanban() {
-        const statuses = ['saved', 'applied', 'interview', 'offer'];
-        const counts = { saved: 0, applied: 0, interview: 0, offer: 0 };
-
-        statuses.forEach(s => {
-            document.getElementById(`col-${s}-list`).innerHTML = '';
+        const counts = { discovered: 0, applied: 0, interview: 0, offer: 0 };
+        FLOW.forEach(s => {
+            const el = document.getElementById(`col-${s}-list`);
+            if (el) el.innerHTML = '';
         });
 
         jobs.forEach(job => {
-            counts[job.status] = (counts[job.status] || 0) + 1;
-            const col = document.getElementById(`col-${job.status}-list`);
+            const currentStatus = FLOW.includes(job.status) ? job.status : 'applied';
+            counts[currentStatus] = (counts[currentStatus] || 0) + 1;
+            const col = document.getElementById(`col-${currentStatus}-list`);
             if (!col) return;
 
             const card = document.createElement('div');
             card.className = 'job-card';
             card.id = `job-card-${job.id}`;
             card.onclick = (e) => {
-                if (!e.target.closest('.card-actions')) {
+                if (!e.target.closest('button') && !e.target.closest('a')) {
                     openJobDetails(job.id);
                 }
             };
 
+            const forwardBtn = currentStatus !== 'offer' 
+                ? `<button class="btn-card-action btn-move" onclick="moveJob(${job.id}, '${currentStatus}')">קדם ←</button>` : '';
+            const backBtn = currentStatus !== 'discovered'
+                ? `<button class="btn-card-action btn-back" onclick="regressJob(${job.id}, '${currentStatus}')">➔ החזר</button>` : '';
+
+            // כפתור מהיר להגשה אם המשרה בהזדמנויות
+            const quickApplyBtn = currentStatus === 'discovered'
+                ? `<button class="btn-card-action btn-apply-fast" onclick="markAsApplied(${job.id})">הגשתי! העבר ל-הוגש ✅</button>` : '';
+
             card.innerHTML = `
                 <h4>${job.company}</h4>
                 <p>${job.role}</p>
-                <div class="meta">
-                    <span class="platform-badge">🌐 ${job.platform || 'אתר החברה'}</span>
-                    <span>${job.applied_date || ''}</span>
+                <div class="tag-row">
+                    <span class="tag-badge tag-platform">🌐 ${job.platform || 'אתר החברה'}</span>
+                    <span class="tag-badge tag-jobtype">${job.job_type || 'משרה מלאה'}</span>
+                    ${job.work_model ? `<span class="tag-badge">${job.work_model}</span>` : ''}
                 </div>
+                ${quickApplyBtn}
                 <div class="card-actions">
-                    <button class="btn-card-action btn-move" onclick="moveJob(${job.id}, '${job.status}')">קדם ➔</button>
+                    ${forwardBtn}
+                    ${backBtn}
                     <button class="btn-card-action btn-del" onclick="deleteJob(${job.id})">מחק</button>
                 </div>
             `;
             col.appendChild(card);
         });
 
-        statuses.forEach(s => {
-            document.getElementById(`count-${s}`).textContent = counts[s] || 0;
-            const col = document.getElementById(`col-${s}-list`);
-            if (counts[s] === 0) {
-                col.innerHTML = `<div class="empty-state">אין משרות בשלב זה</div>`;
+        FLOW.forEach(s => {
+            const count = counts[s] || 0;
+            const cEl = document.getElementById(`count-${s}`);
+            const mcEl = document.getElementById(`mcount-${s}`);
+            if (cEl) cEl.textContent = count;
+            if (mcEl) mcEl.textContent = count;
+
+            const list = document.getElementById(`col-${s}-list`);
+            if (list && count === 0) {
+                list.innerHTML = `<div class="empty-state">אין משרות בשלב זה</div>`;
             }
         });
+    }
+
+    async function markAsApplied(id) {
+        const job = jobs.find(j => j.id === id);
+        if (!job) return;
+        job.status = 'applied';
+        job.applied_date = new Date().toISOString().split('T')[0];
+
+        if (currentUser) {
+            await dbClient.from('jobs').update({ status: 'applied', applied_date: job.applied_date }).eq('id', id).eq('user_id', currentUser.id);
+        } else {
+            localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
+        }
+        renderKanban();
+        showStatus(`המשרה ב-${job.company} עודכנה לסטטוס "הוגש קו״ח"!`);
+    }
+
+    function openJobDetails(jobId) {
+        const job = jobs.find(j => j.id === jobId);
+        if (!job) return;
+
+        document.getElementById('modalJobCompany').textContent = job.company;
+        document.getElementById('modalJobRole').textContent = job.role;
+        document.getElementById('modalJobSnippet').textContent = job.snippet || 'אין תקציר זמין עבור משרה זו.';
+        
+        const tagsContainer = document.getElementById('modalTags');
+        tagsContainer.innerHTML = `
+            <span class="tag-badge tag-platform">🌐 ${job.platform || 'אתר החברה'}</span>
+            <span class="tag-badge tag-jobtype">${job.job_type || 'משרה מלאה'}</span>
+            ${job.work_model ? `<span class="tag-badge">${job.work_model}</span>` : ''}
+            <span class="tag-badge">${job.applied_date || ''}</span>
+        `;
+
+        const linkBtn = document.getElementById('modalJobLink');
+        if (job.link) {
+            linkBtn.href = job.link;
+            linkBtn.style.display = 'inline-flex';
+            linkBtn.textContent = job.link.includes('mail.google.com') ? '📩 פתח מייל מקורי ב-Gmail ↗' : '🔗 פתח מודעה להגשה ↗';
+        } else {
+            linkBtn.style.display = 'none';
+        }
+
+        openModal('jobDetailModal');
+    }
+
+    function toggleTrashView() {
+        const list = document.getElementById('trashList');
+        const arrow = document.getElementById('trashToggleArrow');
+        if (list.style.display === 'none') {
+            list.style.display = 'grid';
+            arrow.textContent = 'הסתר ▲';
+        } else {
+            list.style.display = 'none';
+            arrow.textContent = 'הצג ▼';
+        }
+    }
+
+    function renderTrash() {
+        const countEl = document.getElementById('trashCount');
+        const listEl = document.getElementById('trashList');
+        if (!countEl || !listEl) return;
+
+        countEl.textContent = deletedJobs.length;
+        listEl.innerHTML = '';
+
+        if (deletedJobs.length === 0) {
+            listEl.innerHTML = '<div style="font-size:12px; color:var(--text-secondary); grid-column: 1/-1;">פח המחזור ריק.</div>';
+            return;
+        }
+
+        deletedJobs.forEach(job => {
+            const card = document.createElement('div');
+            card.className = 'trash-card';
+            card.innerHTML = `
+                <div class="trash-card-info">
+                    <h5>${job.company}</h5>
+                    <p>${job.role} • <span>${job.platform || ''}</span></p>
+                </div>
+                <div class="trash-actions">
+                    <button class="btn-restore" onclick="restoreJob(${job.id})">↩️ שחזר</button>
+                    <button class="btn-trash-del" onclick="permanentlyDeleteJob(${job.id})" title="מחק לצמיתות">✕</button>
+                </div>
+            `;
+            listEl.appendChild(card);
+        });
+    }
+
+    async function deleteJob(id) {
+        const job = jobs.find(j => j.id === id);
+        if (!job) return;
+
+        jobs = jobs.filter(j => j.id !== id);
+        deletedJobs.unshift(job);
+        localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
+
+        if (currentUser) {
+            await dbClient.from('jobs').delete().eq('id', id).eq('user_id', currentUser.id);
+        } else {
+            localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
+        }
+
+        renderKanban();
+        renderTrash();
+        showStatus(`המשרה ב-${job.company} הועברה למודעות שנמחקו.`);
+    }
+
+    async function restoreJob(id) {
+        const jobIndex = deletedJobs.findIndex(j => j.id === id);
+        if (jobIndex === -1) return;
+
+        const jobToRestore = deletedJobs[jobIndex];
+        deletedJobs.splice(jobIndex, 1);
+        localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
+
+        if (currentUser) {
+            const restoreData = {
+                company: jobToRestore.company,
+                role: jobToRestore.role,
+                platform: jobToRestore.platform,
+                status: jobToRestore.status || 'applied',
+                link: jobToRestore.link,
+                snippet: jobToRestore.snippet,
+                job_type: jobToRestore.job_type,
+                work_model: jobToRestore.work_model,
+                applied_date: jobToRestore.applied_date,
+                user_id: currentUser.id
+            };
+            const { data } = await dbClient.from('jobs').insert([restoreData]).select();
+            if (data && data[0]) jobs.unshift(data[0]);
+        } else {
+            jobs.unshift(jobToRestore);
+            localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
+        }
+
+        renderKanban();
+        renderTrash();
+        showStatus(`המשרה ב-${jobToRestore.company} שוחזרה בהצלחה ללוח!`);
+    }
+
+    function permanentlyDeleteJob(id) {
+        const ok = confirm("האם אתה בטוח שברצונך למחוק משרה זו לצמיתות?\n\nלאחר מכן יהיה ניתן לשחזר אותה רק באמצעות סריקה מחדש או הוספה ידנית.");
+        if (!ok) return;
+
+        deletedJobs = deletedJobs.filter(j => j.id !== id);
+        localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
+        renderTrash();
+        showStatus("המשרה נמחקה לצמיתות.");
+    }
+
+    async function moveJob(id, currentStatus) {
+        const idx = FLOW.indexOf(currentStatus);
+        if (idx < FLOW.length - 1) {
+            const next = FLOW[idx + 1];
+            const job = jobs.find(j => j.id === id);
+            if (job) job.status = next;
+
+            if (currentUser) {
+                await dbClient.from('jobs').update({ status: next }).eq('id', id).eq('user_id', currentUser.id);
+            } else {
+                localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
+            }
+            renderKanban();
+        }
+    }
+
+    async function regressJob(id, currentStatus) {
+        const idx = FLOW.indexOf(currentStatus);
+        if (idx > 0) {
+            const prev = FLOW[idx - 1];
+            const job = jobs.find(j => j.id === id);
+            if (job) job.status = prev;
+
+            if (currentUser) {
+                await dbClient.from('jobs').update({ status: prev }).eq('id', id).eq('user_id', currentUser.id);
+            } else {
+                localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
+            }
+            renderKanban();
+        }
     }
 
     document.getElementById('addJobForm').addEventListener('submit', async (e) => {
@@ -883,8 +1110,9 @@
         const newJob = {
             company: document.getElementById('company').value,
             role: document.getElementById('role').value,
-            platform: document.getElementById('platform').value,
+            platform: 'הוספה ידנית',
             status: document.getElementById('initialStatus').value,
+            job_type: document.getElementById('jobType').value,
             link: document.getElementById('jobUrl').value,
             applied_date: new Date().toISOString().split('T')[0]
         };
@@ -904,34 +1132,6 @@
         closeModal('addModal');
     });
 
-    async function moveJob(id, currentStatus) {
-        const flow = ['saved', 'applied', 'interview', 'offer'];
-        const currentIndex = flow.indexOf(currentStatus);
-        if (currentIndex < flow.length - 1) {
-            const nextStatus = flow[currentIndex + 1];
-            const job = jobs.find(j => j.id === id);
-            if (job) job.status = nextStatus;
-
-            if (currentUser) {
-                await dbClient.from('jobs').update({ status: nextStatus }).eq('id', id).eq('user_id', currentUser.id);
-            } else {
-                localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
-            }
-            renderKanban();
-        }
-    }
-
-    async function deleteJob(id) {
-        if (!confirm('למחוק משרה זו מהלוח?')) return;
-        jobs = jobs.filter(j => j.id !== id);
-        if (currentUser) {
-            await dbClient.from('jobs').delete().eq('id', id).eq('user_id', currentUser.id);
-        } else {
-            localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
-        }
-        renderKanban();
-    }
-
     async function loginWithGoogle() {
         await dbClient.auth.signInWithOAuth({
             provider: 'google',
@@ -949,7 +1149,9 @@
             sessionStorage.removeItem('cp_google_provider_token');
             currentUser = null;
             jobs = [];
+            deletedJobs = [];
             renderKanban();
+            renderTrash();
             showLandingPage();
         } else {
             await loginWithGoogle();
@@ -1003,62 +1205,6 @@
         return null;
     }
 
-    async function analyzePastedEmail() {
-        const rawText = document.getElementById('pastedEmailContent').value.trim();
-        if (!rawText) return alert('אנא הדבק את תוכן המייל או המודעה.');
-
-        closeModal('pasteModal');
-        showStatus('מפענח את תוכן ההודעה באמצעות Gemini AI...');
-
-        const urlMatch = rawText.match(/https?:\/\/[^\s"'<>]+/i);
-        const extractedUrl = urlMatch ? urlMatch[0] : '';
-
-        const promptText = `Analyze this pasted job email or job post:
-"${rawText}"
-
-Extract:
-1. company: company name
-2. role: job role/title
-3. status: must be one of: "saved", "applied", "interview", "offer"
-4. platform: source website/board (e.g. "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", "Outlook / מייל", "אתר החברה")
-
-Return ONLY valid JSON: {"company": "string", "role": "string", "status": "string", "platform": "string"}`;
-
-        const geminiData = await generateWithNewestModel(promptText);
-        const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!aiRaw) return showStatus('לא הצלחנו לפענח את הטקסט, נסה שוב.');
-
-        try {
-            const parsed = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());
-            if (parsed.company && parsed.role) {
-                const newJob = {
-                    company: parsed.company,
-                    role: parsed.role,
-                    platform: parsed.platform || 'מייל חיצוני',
-                    status: ['saved', 'applied', 'interview', 'offer'].includes(parsed.status) ? parsed.status : 'saved',
-                    link: extractedUrl,
-                    snippet: rawText.slice(0, 500),
-                    applied_date: new Date().toISOString().split('T')[0]
-                };
-
-                if (currentUser) {
-                    newJob.user_id = currentUser.id;
-                    const { data } = await dbClient.from('jobs').insert([newJob]).select();
-                    if (data && data[0]) jobs.unshift(data[0]);
-                } else {
-                    newJob.id = Date.now();
-                    jobs.unshift(newJob);
-                    localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
-                }
-                document.getElementById('pastedEmailContent').value = '';
-                renderKanban();
-                showStatus(`✨ המשרה ב-${parsed.company} (${parsed.role}) נוספה בהצלחה ללוח!`);
-            }
-        } catch (e) {
-            showStatus('לא זוהו פרטי משרה בטקסט שהודבק.');
-        }
-    }
-
     function decodeBase64Url(str) {
         try {
             const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -1100,25 +1246,21 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
         return null;
     }
 
-    // פונקציית סריקה משודרגת התומכת בריצה שקטה בעליית העמוד
     async function scanGmailForJobs(isSilent = false) {
-        if (!currentUser) {
-            if (!isSilent) alert('כדי לסרוק אוטומטית מ-Gmail יש להתחבר עם Google.');
-            return;
-        }
+        if (!currentUser) return;
 
         const { data: { session } } = await dbClient.auth.getSession();
         const token = session?.provider_token || sessionStorage.getItem('cp_google_provider_token');
         if (!token) {
-            if (!isSilent) alert('נא להתנתק ולהתחבר מחדש עם Google כדי לאשר סריקת Gmail.');
+            if (!isSilent) alert('נא להתנתק ולהתחבר מחדש עם Google.');
             return;
         }
 
-        if (!isSilent) showStatus('סורק את תיבת ה-Gmail באמצעות Gemini AI...');
+        if (!isSilent) showStatus('סורק את תיבת ה-Gmail...');
 
         try {
             const searchTerms = [
-                'subject:(application OR applied OR interview OR job OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות" OR "משרה" OR "דרושים")',
+                'subject:(application OR applied OR interview OR job OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות" OR "משרה" OR "דרושים" OR "התאמה למשרה")',
                 'from:(comeet OR greenhouse OR lever OR workday OR linkedin OR alljobs OR drushim OR jobmaster)'
             ].join(' OR ');
 
@@ -1128,7 +1270,7 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
 
             if (listRes.status === 401) {
                 sessionStorage.removeItem('cp_google_provider_token');
-                if (!isSilent) showStatus('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש עם Google.');
+                if (!isSilent) showStatus('תוקף ההרשאה פג. התחבר מחדש.');
                 return;
             }
 
@@ -1140,7 +1282,6 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
 
             let addedCount = 0;
             let updatedCount = 0;
-            newlyAddedJobIds = [];
 
             for (const msg of listData.messages) {
                 const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
@@ -1157,14 +1298,26 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
                 const finalJobLink = extractedDirectUrl || gmailMessageUrl;
                 const headerPlatform = detectPlatformFromHeaders(from, subject, snippet);
 
-                const promptText = `Analyze this job email:
+                const promptText = `Analyze this email regarding jobs/career:
 From: "${from}"
 Subject: "${subject}"
 Snippet: "${snippet}"
 
-Extract: company, role, status ("saved", "applied", "interview", "offer"), and platform ("LinkedIn", "AllJobs", "דרושים IL", "JobMaster", "Comeet", or "אתר החברה").
-If not job-related, return {"company": null}.
-Return ONLY valid JSON: {"company": "string or null", "role": "string or null", "status": "string", "platform": "string"}`;
+Determine:
+1. company: Company name (string or null if not job-related)
+2. role: Position title (string or null)
+3. status: 
+   - "discovered": If this is a job alert / recommendation email ("משרות שעשויות לעניין אותך", "New job posted").
+   - "applied": If the user applied ("Application received", "תודה שהגשת מועמדות").
+   - "interview": If an interview or phone screen is mentioned.
+   - "offer": If a job offer or contract is mentioned.
+   - "rejected": If a rejection email ("החלטנו להמשיך עם מועמדים אחרים").
+4. platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", "Comeet", or "אתר החברה".
+5. job_type: "משרה מלאה" (default), "משרת סטודנט", or "משרה חלקית".
+6. work_model: "היברידי", "מהמשרד", or "מרחוק".
+7. one_line_summary: A crisp 1-sentence summary in Hebrew explaining current state.
+
+Return ONLY valid JSON: {"company": "string or null", "role": "string or null", "status": "string", "platform": "string", "job_type": "string", "work_model": "string", "one_line_summary": "string"}`;
 
                 const geminiData = await generateWithNewestModel(promptText);
                 const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1173,37 +1326,65 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                 try {
                     const parsed = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());
                     if (parsed.company && parsed.role) {
-                        const detectedPlatform = headerPlatform || (parsed.platform && parsed.platform !== 'null' ? parsed.platform : 'אתר החברה');
+                        const detectedPlatform = headerPlatform || parsed.platform || 'אתר החברה';
+
+                        // אם המייל הוא דחייה - מעביר לפח/ארכיון ולא מציג בלוח
+                        if (parsed.status === 'rejected') {
+                            const matchIndex = jobs.findIndex(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
+                            if (matchIndex !== -1) {
+                                deleteJob(jobs[matchIndex].id);
+                            }
+                            continue;
+                        }
+
                         const existingJob = jobs.find(j =>
                             j.company?.toLowerCase().trim() === parsed.company.toLowerCase().trim() &&
                             j.role?.toLowerCase().trim() === parsed.role.toLowerCase().trim()
                         );
 
                         if (existingJob) {
-                            if (!existingJob.link || existingJob.platform === 'Gmail AI') {
-                                await dbClient.from('jobs').update({ platform: detectedPlatform, link: finalJobLink, snippet: snippet }).eq('id', existingJob.id).eq('user_id', currentUser.id);
-                                existingJob.platform = detectedPlatform;
-                                existingJob.link = finalJobLink;
-                                existingJob.snippet = snippet;
-                                updatedCount++;
-                            }
+                            // שדרוג סטטוס אוטומטי אם הגיע שלב מתקדם יותר
+                            const currentIdx = FLOW.indexOf(existingJob.status);
+                            const newIdx = FLOW.indexOf(parsed.status);
+                            let statusToSet = existingJob.status;
+                            if (newIdx > currentIdx) statusToSet = parsed.status;
+
+                            await dbClient.from('jobs').update({
+                                status: statusToSet,
+                                link: finalJobLink,
+                                snippet: parsed.one_line_summary || snippet,
+                                platform: detectedPlatform,
+                                job_type: parsed.job_type || existingJob.job_type || 'משרה מלאה',
+                                work_model: parsed.work_model || existingJob.work_model
+                            }).eq('id', existingJob.id).eq('user_id', currentUser.id);
+
+                            existingJob.status = statusToSet;
+                            existingJob.link = finalJobLink;
+                            existingJob.snippet = parsed.one_line_summary || snippet;
+                            updatedCount++;
                             continue;
                         }
+
+                        // בדיקה אם נמחק בעבר
+                        const inTrash = deletedJobs.some(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
+                        if (inTrash) continue;
 
                         const newJob = {
                             company: parsed.company,
                             role: parsed.role,
                             platform: detectedPlatform,
-                            status: ['saved', 'applied', 'interview', 'offer'].includes(parsed.status) ? parsed.status : 'applied',
+                            status: FLOW.includes(parsed.status) ? parsed.status : 'applied',
                             link: finalJobLink,
-                            snippet: snippet,
+                            snippet: parsed.one_line_summary || snippet,
+                            job_type: parsed.job_type || 'משרה מלאה',
+                            work_model: parsed.work_model || 'מהמשרד',
                             applied_date: new Date().toISOString().split('T')[0],
                             user_id: currentUser.id
                         };
+
                         const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
                         if (inserted?.[0]) {
                             jobs.unshift(inserted[0]);
-                            newlyAddedJobIds.push(inserted[0].id);
                             addedCount++;
                         }
                     }
@@ -1212,14 +1393,61 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
 
             renderKanban();
 
-            // אם נמצאו משרות חדשות בסריקה - מציג פופ-אפ התראה מעוצב
             if (addedCount > 0) {
-                showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח. לחץ כדי להדגיש אותן.');
+                showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות שולבו בהצלחה בלוח.');
             } else if (!isSilent) {
-                showStatus(`✅ הסריקה הושלמה! לא נמצאו משרות חדשות (עודכנו ${updatedCount} משרות).`);
+                showStatus(`✅ הסריקה הושלמה (עודכנו ${updatedCount} משרות).`);
             }
         } catch (err) {
-            if (!isSilent) showStatus('שגיאה בסריקת המיילים: ' + err.message);
+            if (!isSilent) showStatus('שגיאה בסריקה: ' + err.message);
+        }
+    }
+
+    async function analyzePastedEmail() {
+        const rawText = document.getElementById('pastedEmailContent').value.trim();
+        if (!rawText) return alert('הדבק תוכן משרה או מייל.');
+
+        closeModal('pasteModal');
+        showStatus('מפענח באמצעות AI...');
+
+        const promptText = `Analyze pasted job text:
+"${rawText}"
+Extract company, role, status ("discovered", "applied", "interview", "offer"), platform, job_type ("משרה מלאה", "משרת סטודנט"), work_model ("היברידי", "מרחוק", "מהמשרד"), and one_line_summary in Hebrew.
+Return ONLY valid JSON: {"company": "string", "role": "string", "status": "string", "platform": "string", "job_type": "string", "work_model": "string", "one_line_summary": "string"}`;
+
+        const geminiData = await generateWithNewestModel(promptText);
+        const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!aiRaw) return showStatus('לא הצלחנו לפענח את הטקסט.');
+
+        try {
+            const parsed = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());
+            if (parsed.company && parsed.role) {
+                const newJob = {
+                    company: parsed.company,
+                    role: parsed.role,
+                    platform: parsed.platform || 'מייל חיצוני',
+                    status: FLOW.includes(parsed.status) ? parsed.status : 'applied',
+                    job_type: parsed.job_type || 'משרה מלאה',
+                    work_model: parsed.work_model || 'מהמשרד',
+                    snippet: parsed.one_line_summary || rawText.slice(0, 200),
+                    applied_date: new Date().toISOString().split('T')[0]
+                };
+
+                if (currentUser) {
+                    newJob.user_id = currentUser.id;
+                    const { data } = await dbClient.from('jobs').insert([newJob]).select();
+                    if (data && data[0]) jobs.unshift(data[0]);
+                } else {
+                    newJob.id = Date.now();
+                    jobs.unshift(newJob);
+                    localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
+                }
+                document.getElementById('pastedEmailContent').value = '';
+                renderKanban();
+                showStatus(`✨ המשרה ב-${parsed.company} נוספה ללוח!`);
+            }
+        } catch (e) {
+            showStatus('שגיאה בזיהוי הפרטים.');
         }
     }
 
