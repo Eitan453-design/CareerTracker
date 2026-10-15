@@ -739,18 +739,21 @@
     let sortedCandidateModels = null;
     const FLOW = ['discovered', 'applied', 'interview', 'offer'];
 
+    // מיפוי נקי ומדויק בין שמות העמודות בממשק לשמות השמורים ב-Supabase
     function normalizeStatus(status) {
         if (!status) return 'discovered';
-        if (status === 'saved' || status === 'discovered') return 'discovered';
-        if (status === 'applied') return 'applied';
-        if (status === 'interview') return 'interview';
-        if (status === 'offer') return 'offer';
+        const s = String(status).toLowerCase().trim();
+        if (s === 'saved' || s === 'discovered') return 'discovered';
+        if (s === 'applied') return 'applied';
+        if (s === 'interview') return 'interview';
+        if (s === 'offer') return 'offer';
         return 'discovered';
     }
 
     function toDbStatus(status) {
-        if (status === 'discovered') return 'saved';
-        return status;
+        const s = normalizeStatus(status);
+        if (s === 'discovered') return 'saved';
+        return s;
     }
 
     function getStatusHebrew(status) {
@@ -760,7 +763,7 @@
             interview: 'ראיונות ומיון',
             offer: 'הצעות שכר'
         };
-        return map[status] || status;
+        return map[normalizeStatus(status)] || status;
     }
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -809,7 +812,6 @@
         await loadJobs();
     }
 
-    // מאזין לשינויי סטטוס התחברות עם טיפול בכל סוגי האירועים (כולל רענון דף INITIAL_SESSION)
     dbClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.provider_token) {
             localStorage.setItem('cp_google_provider_token', session.provider_token);
@@ -832,7 +834,6 @@
     });
 
     async function init() {
-        // 1. לכידת ה-provider_token מתוך ה-hash בעת חזרה ראשונה מ-Google
         if (window.location.hash) {
             const hashParams = new URLSearchParams(window.location.hash.substring(1));
             const hashProviderToken = hashParams.get('provider_token');
@@ -844,7 +845,6 @@
         try {
             const { data: { session } } = await dbClient.auth.getSession();
             
-            // 2. ניקוי ה-hash מהכתובת למעלה כדי שרענון (F5) לא ינסה לצרוך שוב מפתח שפג תוקפו
             if (window.location.hash && window.location.hash.includes('access_token')) {
                 history.replaceState(null, '', window.location.pathname);
             }
@@ -1028,7 +1028,7 @@
             card.innerHTML = `
                 <div class="trash-card-info">
                     <h5>${job.company}</h5>
-                    <p>${job.role} • <span style="color:#64d2ff;">${getStatusHebrew(normalizeStatus(job.status))}</span></p>
+                    <p>${job.role} • <span style="color:#64d2ff;">${getStatusHebrew(job.original_col || job.status)}</span></p>
                 </div>
                 <div class="trash-actions">
                     <button class="btn-restore" onclick="restoreJob(${job.id})">↩️ שחזר</button>
@@ -1043,10 +1043,12 @@
         const job = jobs.find(j => String(j.id) === String(id));
         if (!job) return;
 
-        // שמירת הסטטוס המדויק בפח המחזור
+        // שמירת הסטטוס המקורי המדויק
+        const exactStatus = normalizeStatus(job.status);
         const jobToSave = {
             ...job,
-            status: normalizeStatus(job.status)
+            original_col: exactStatus,
+            status: exactStatus
         };
 
         jobs = jobs.filter(j => String(j.id) !== String(id));
@@ -1069,7 +1071,8 @@
         if (jobIndex === -1) return;
 
         const jobToRestore = deletedJobs[jobIndex];
-        const targetStatus = normalizeStatus(jobToRestore.status);
+        // שחזור בדיוק לעמודה שממנה נמחקה
+        const targetStatus = normalizeStatus(jobToRestore.original_col || jobToRestore.status);
 
         deletedJobs.splice(jobIndex, 1);
         localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
@@ -1080,7 +1083,6 @@
         };
 
         if (currentUser) {
-            // שולחים אך ורק עמודות שקיימות בטבלת Supabase כדי למנוע שגיאות 400!
             const restoreData = {
                 company: jobToRestore.company,
                 role: jobToRestore.role,
@@ -1090,15 +1092,16 @@
                 applied_date: jobToRestore.applied_date || new Date().toISOString().split('T')[0],
                 user_id: currentUser.id
             };
+            
             const { data, error } = await dbClient.from('jobs').insert([restoreData]).select();
             if (error) {
-                console.error('שגיאה בשחזור מול Supabase:', error);
+                console.error('Supabase restore error:', error);
                 restoredItem.id = Date.now();
                 jobs.unshift(restoredItem);
             } else if (data && data[0]) {
                 jobs.unshift({
                     ...data[0],
-                    status: normalizeStatus(data[0].status)
+                    status: targetStatus
                 });
             }
         } else {
@@ -1324,7 +1327,7 @@
         
         if (!token) {
             if (!isSilent) {
-                alert('נא ללחוץ על "התנתק" ולהתחבר מחדש עם Google פעם אחת כדי לאשר קריאת Gmail.');
+                alert('נא ללחוץ על "התנתק" ולהתחבר מחדש עם Google פעם אחת.');
             }
             return;
         }
@@ -1332,10 +1335,8 @@
         if (!isSilent) showStatus('סורק את תיבת ה-Gmail...');
 
         try {
-            // שאילתת חיפוש רחבה וגמישה בלי הגבלות תחביריות שנכשלות בעברית
-            const query = 'משרה OR משרות OR מועמדות OR ראיון OR ראיונות OR דרושים OR job OR jobs OR interview OR application OR applied';
-            
-            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`, {
+            // שאילתה ישירה ללא הגבלת subject שתופסת מיידית כל מייל שקשור למשרות
+            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -1347,11 +1348,9 @@
 
             const listData = await listRes.json();
             if (!listData.messages?.length) {
-                if (!isSilent) showStatus('לא נמצאו הודעות דרושים ב-Gmail.');
+                if (!isSilent) showStatus('לא נמצאו הודעות בתיבת ה-Gmail.');
                 return;
             }
-
-            if (!isSilent) showStatus(`נמצאו ${listData.messages.length} הודעות. מפענח באמצעות AI...`);
 
             let addedCount = 0;
             let updatedCount = 0;
@@ -1366,27 +1365,32 @@
                 const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
                 const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
 
+                // סינון ראשוני מהיר: בודק אם המייל קשור לעבודה/משרות
+                const combinedCheck = `${subject} ${snippet}`.toLowerCase();
+                const isRelevant = /משרה|משרות|דרושים|ראיון|ראיונות|מועמדות|אלביט|אינטל|job|jobs|interview|applied|hiring|career/i.test(combinedCheck);
+                if (!isRelevant) continue;
+
                 const bodyText = extractFullEmailText(msgData.payload) || snippet;
                 const extractedDirectUrl = extractLinksFromPayload(msgData.payload);
                 const gmailMessageUrl = `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(currentUser.email)}#inbox/${msg.id}`;
                 const finalJobLink = extractedDirectUrl || gmailMessageUrl;
                 const headerPlatform = detectPlatformFromHeaders(from, subject, snippet);
 
-                const promptText = `Analyze this email regarding jobs or career applications.
-Even if forwarded or sent from the user themselves for testing, identify if a company and role are mentioned.
+                const promptText = `Analyze this email regarding jobs/recruitment. 
+NOTE: The email may be sent from the user themselves for testing purposes! Extract the job information mentioned inside.
 Subject: "${subject}"
 From: "${from}"
 Content: "${bodyText.slice(0, 1500)}"
 
 Instructions:
-1. company: Company name (string or null if not job-related).
-2. role: Position/Role title (string or null).
+1. company: Company name (e.g. "אלביט מערכות"). If not job-related, return null.
+2. role: Position/Role title (e.g. "מהנדס PMO"). If not job-related, return null.
 3. status: 
-   - "discovered": If this is a job alert, new job post, or recommendation ("משרות חדשות", "הזדמנויות", "New job posted").
-   - "applied": If application was submitted ("תודה שהגשת", "Application received").
-   - "interview": If an interview or phone screen is mentioned.
+   - "discovered": If this is a job alert, new job post, or recommendation ("משרות חדשות", "משרות שעשויות לעניין אותך", "New job posted").
+   - "applied": If application was submitted ("תודה שהגשת", "מועמדותך התקבלה", "Application received").
+   - "interview": If an interview, meeting or phone screen is mentioned ("זימון לראיון", "ראיון היכרות").
    - "offer": If job offer or contract is mentioned.
-   - "rejected": If rejected.
+   - "rejected": If rejected ("החלטנו להמשיך עם מועמדים אחרים").
 4. platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", or "אתר החברה".
 
 Return ONLY valid JSON:
@@ -1447,13 +1451,17 @@ Return ONLY valid JSON:
                             user_id: currentUser.id
                         };
 
-                        const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
-                        if (inserted?.[0]) {
-                            jobs.unshift({ ...inserted[0], status: normalizeStatus(inserted[0].status) });
+                        const { data: inserted, error: insertError } = await dbClient.from('jobs').insert([newJob]).select();
+                        if (insertError) {
+                            console.error('Insert job error:', insertError);
+                        } else if (inserted?.[0]) {
+                            jobs.unshift({ ...inserted[0], status: targetStatus });
                             addedCount++;
                         }
                     }
-                } catch (e) {}
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                }
             }
 
             renderKanban();
@@ -1461,9 +1469,10 @@ Return ONLY valid JSON:
             if (addedCount > 0) {
                 showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח בהצלחה.');
             } else if (!isSilent) {
-                showStatus(`✅ הסריקה הושלמה (עודכנו ${updatedCount} משרות).`);
+                showStatus(`✅ הסריקה הושלמה (נוספו ${addedCount}, עודכנו ${updatedCount}).`);
             }
         } catch (err) {
+            console.error('Scan error:', err);
             if (!isSilent) showStatus('שגיאה בסריקה: ' + err.message);
         }
     }
@@ -1500,7 +1509,7 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
                 if (currentUser) {
                     newJob.user_id = currentUser.id;
                     const { data } = await dbClient.from('jobs').insert([newJob]).select();
-                    if (data && data[0]) jobs.unshift({ ...data[0], status: normalizeStatus(data[0].status) });
+                    if (data && data[0]) jobs.unshift({ ...data[0], status: targetStatus });
                 } else {
                     newJob.id = Date.now();
                     newJob.status = targetStatus;
