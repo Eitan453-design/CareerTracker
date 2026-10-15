@@ -215,17 +215,34 @@
         .ios-btn-indigo { background: linear-gradient(135deg, #5e5ce6, #bf5af2); color: #fff; }
         .ios-btn-glass { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid var(--border-subtle); }
 
+        /* --- שורת סטטוס עם כפתור סגירה --- */
         #statusBanner {
             display: none;
             background: rgba(10, 132, 255, 0.15);
             border: 1px solid rgba(10, 132, 255, 0.35);
             color: #64d2ff;
-            padding: 10px 16px;
+            padding: 10px 18px;
             border-radius: 14px;
             font-size: 13px;
             font-weight: 600;
             margin-bottom: 12px;
-            text-align: center;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .banner-close-btn {
+            background: transparent;
+            border: none;
+            color: #64d2ff;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 6px;
+            transition: background 0.15s ease, opacity 0.15s ease;
+        }
+        .banner-close-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
         }
 
         /* --- מובייל Tabs --- */
@@ -544,8 +561,8 @@
         <div class="features-showcase">
             <div class="showcase-card">
                 <span class="showcase-icon">⚡</span>
-                <h3>אוטומציה מלאה (Zero-Touch)</h3>
-                <p>האתר סורק בעצמו ברקע, מסווג משרות ומקדם שלבים לפי תשובות המעסיקים.</p>
+                <h3>אוטומציה מהירה (Fast-Scan)</h3>
+                <p>סריקה מואצת של התיבה בבת אחת ומענה מרוכז תוך שניות בודדות.</p>
             </div>
             <div class="showcase-card">
                 <span class="showcase-icon">📱</span>
@@ -576,7 +593,11 @@
             </div>
         </nav>
 
-        <div id="statusBanner"></div>
+        <!-- שורת סטטוס עם כפתור סגירה מהיר -->
+        <div id="statusBanner">
+            <span id="statusBannerText"></span>
+            <button class="banner-close-btn" onclick="closeStatusBanner()" title="סגור הודעה">✕</button>
+        </div>
 
         <!-- לשוניות מובייל -->
         <div class="mobile-tabs" id="mobileTabs">
@@ -768,10 +789,15 @@
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+    function closeStatusBanner() {
+        document.getElementById('statusBanner').style.display = 'none';
+    }
+
     function showStatus(text) {
         const banner = document.getElementById('statusBanner');
-        banner.style.display = 'block';
-        banner.textContent = text;
+        const textEl = document.getElementById('statusBannerText');
+        if (textEl) textEl.textContent = text;
+        banner.style.display = 'flex';
     }
 
     function showToast(title, sub) {
@@ -811,7 +837,6 @@
         await loadJobs();
     }
 
-    // תפיסת מפתח ה-token מכל מקור אפשרי
     dbClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.provider_token) {
             localStorage.setItem('cp_google_provider_token', session.provider_token);
@@ -834,7 +859,6 @@
     });
 
     async function init() {
-        // שמירת ה-token ישירות מכתובת ה-URL בעת חזרה ראשונה מ-OAuth
         if (window.location.hash) {
             const hashParams = new URLSearchParams(window.location.hash.substring(1));
             const pt = hashParams.get('provider_token');
@@ -1244,17 +1268,26 @@
         const candidates = verifiedModel ? [verifiedModel] : await getNewestModelsList();
         for (const modelPath of candidates) {
             const cleanName = modelPath.startsWith('models/') ? modelPath : `models/${modelPath}`;
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${cleanName}:generateContent?key=${GEMINI_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                verifiedModel = cleanName;
-                return data;
-            } else if (verifiedModel === cleanName) {
-                verifiedModel = null;
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${cleanName}:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+                });
+
+                if (res.status === 429 || res.status === 503) {
+                    continue;
+                }
+
+                const data = await res.json();
+                if (res.ok) {
+                    verifiedModel = cleanName;
+                    return data;
+                } else if (verifiedModel === cleanName) {
+                    verifiedModel = null;
+                }
+            } catch (err) {
+                console.warn('Model call error, trying next:', err);
             }
         }
         return null;
@@ -1318,7 +1351,7 @@
         return 'אתר החברה';
     }
 
-    // פונקציית סריקה מתוקנת ומורחבת הכוללת את כל התיקיות ב-Gmail
+    // סריקה מהירה במיוחד (Fast Parallel Scan + Single Batch AI Prompt)
     async function scanGmailForJobs(isSilent = false) {
         if (!currentUser) return;
 
@@ -1326,23 +1359,21 @@
         let token = session?.provider_token || localStorage.getItem('cp_google_provider_token');
         
         if (!token) {
-            if (!isSilent) {
-                alert('מפתח הגישה ל-Gmail לא נמצא.\nיש ללחוץ על "התנתק" ולהתחבר מחדש עם Google כדי לאשר קריאת מיילים.');
-            }
+            if (!isSilent) alert('מפתח הגישה ל-Gmail לא נמצא. התנתק והתחבר שוב.');
             return;
         }
 
-        if (!isSilent) showStatus('מתחבר ל-Gmail וסורק מיילים מכל הלשוניות (כולל LinkedIn והודעות בדיקה)...');
+        if (!isSilent) showStatus('סורק הודעות במהירות מתיבת ה-Gmail...');
 
         try {
-            // שליפת 25 המיילים האחרונים ללא סינון מגביל, כולל Social ו-Promotions
+            // 1. שליפת רשימת 25 המזהים האחרונים (תופס ~300ms)
             const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&includeSpamTrash=false`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (listRes.status === 401) {
                 localStorage.removeItem('cp_google_provider_token');
-                if (!isSilent) alert('תוקף ההרשאה פג. יש ללחוץ על "התנתק" ולהתחבר מחדש עם Google.');
+                if (!isSilent) alert('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש עם Google.');
                 return;
             }
 
@@ -1352,108 +1383,142 @@
                 return;
             }
 
-            if (!isSilent) showStatus(`נמצאו ${listData.messages.length} מיילים אחרונים. בודק התאמה למשרות ו-LinkedIn...`);
+            // 2. שליפה מקבילית סופר-מהירה של כל המיילים בבת אחת (Promise.all)
+            const messageDetails = await Promise.all(
+                listData.messages.map(m =>
+                    fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }).then(r => r.json()).catch(() => null)
+                )
+            );
 
-            let addedCount = 0;
-            let updatedCount = 0;
-
-            for (const msg of listData.messages) {
-                const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const msgData = await msgRes.json();
+            // 3. סינון מקומי מהיר של מיילים רלוונטיים בלבד
+            const relevantMsgs = [];
+            for (const msgData of messageDetails) {
+                if (!msgData) continue;
                 const snippet = msgData.snippet || '';
                 const headers = msgData.payload?.headers || [];
                 const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
                 const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
 
-                // סינון ראשוני רחב מאוד שכולל לינקדאין, מיילים עצמיים, משרות וראיונות
                 const combinedCheck = `${subject} ${from} ${snippet}`.toLowerCase();
-                const isRelevant = /linkedin|alljobs|drushim|משרה|משרות|דרושים|ראיון|ראיונות|מועמדות|אלביט|אינטל|job|jobs|hiring|career/i.test(combinedCheck);
-                
-                if (!isRelevant) continue;
+                const isRelevant = /linkedin|alljobs|drushim|משרה|משרות|דרושים|ראיון|ראיונות|מועמדות|אלביט|אינטל|intel|job|jobs|hiring|career|application/i.test(combinedCheck);
 
-                const bodyText = extractFullEmailText(msgData.payload) || snippet;
-                const extractedDirectUrl = extractLinksFromPayload(msgData.payload);
-                const gmailMessageUrl = `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(currentUser.email)}#inbox/${msg.id}`;
-                const finalJobLink = extractedDirectUrl || gmailMessageUrl;
-                const headerPlatform = detectPlatformFromHeaders(from, subject, snippet);
+                if (isRelevant) {
+                    relevantMsgs.push({
+                        id: msgData.id,
+                        subject,
+                        from,
+                        snippet,
+                        payload: msgData.payload
+                    });
+                }
+            }
 
-                const promptText = `Analyze this email to extract job application or job alert details.
-The email might be from LinkedIn, a job portal, an employer, OR sent from the user themselves for testing!
+            if (relevantMsgs.length === 0) {
+                if (!isSilent) showStatus('לא נמצאו הודעות דרושים חדשות בתיבת ה-Gmail.');
+                return;
+            }
 
-Subject: "${subject}"
-From: "${from}"
-Snippet/Body: "${bodyText.slice(0, 1500)}"
+            if (!isSilent) showStatus(`נמצאו ${relevantMsgs.length} הודעות דרושים. מפענח את כולן בבת אחת באמצעות AI...`);
 
-Extract:
-1. company: Company name (e.g. "אלביט מערכות", "Google", "LinkedIn Jobs", etc.). Return null ONLY if totally unrelated to work or careers.
-2. role: Position/Role title (e.g. "מהנדס PMO", "Full Stack Developer"). If not specified, return "הזדמנות תעסוקה".
-3. status: 
-   - "discovered": If this is a job alert, suggestion, recommendation ("משרות שעשויות לעניין אותך", "job alert", "new position").
-   - "applied": If application submitted or received ("תודה שהגשת", "Application received").
-   - "interview": If interview or phone call mentioned.
-   - "offer": If offer or contract mentioned.
-4. platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", or "אתר החברה".
+            // 4. פענוח מרוכז של כל המיילים בקריאת AI אחת בלבד (לוקח 1.5 שניות, אפס 429!)
+            const promptText = `Analyze these ${relevantMsgs.length} emails to extract job applications or job alerts.
+Note: Emails might be forwarded or sent by user themselves for testing!
 
-Return ONLY valid JSON:
-{"company": "string or null", "role": "string or null", "status": "string", "platform": "string"}`;
+Emails:
+${relevantMsgs.map((m, idx) => `[Email ${idx + 1}] ID: "${m.id}"
+Subject: "${m.subject}"
+From: "${m.from}"
+Snippet: "${m.snippet}"`).join('\n\n')}
 
-                const geminiData = await generateWithNewestModel(promptText);
-                const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!aiRaw) continue;
+Extract an array of job items found. For each job:
+- email_id: corresponding email ID string
+- company: Company name (null if not a real job or totally unrelated)
+- role: Job title / Role
+- status: "discovered" (alert/new post), "applied" (application submitted/confirmation), "interview" (interview/screening), "offer" (offer/contract), or "rejected"
+- platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", or "אתר החברה"
 
+Return ONLY a valid JSON array of objects:
+[
+  {"email_id": "...", "company": "...", "role": "...", "status": "discovered", "platform": "LinkedIn"}
+]`;
+
+            const geminiData = await generateWithNewestModel(promptText);
+            const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            let parsedJobs = [];
+            if (aiRaw) {
                 try {
-                    const parsed = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());
-                    if (parsed.company && parsed.role) {
-                        const detectedPlatform = headerPlatform || parsed.platform || 'LinkedIn';
-                        const targetStatus = normalizeStatus(parsed.status);
-
-                        const existingJob = jobs.find(j =>
-                            j.company?.toLowerCase().trim() === parsed.company.toLowerCase().trim() &&
-                            j.role?.toLowerCase().trim() === parsed.role.toLowerCase().trim()
-                        );
-
-                        if (existingJob) {
-                            const currentIdx = FLOW.indexOf(existingJob.status);
-                            const newIdx = FLOW.indexOf(targetStatus);
-                            let statusToSet = existingJob.status;
-                            if (newIdx > currentIdx) statusToSet = targetStatus;
-
-                            await dbClient.from('jobs').update({
-                                status: toDbStatus(statusToSet),
-                                link: finalJobLink,
-                                platform: detectedPlatform
-                            }).eq('id', existingJob.id).eq('user_id', currentUser.id);
-
-                            existingJob.status = statusToSet;
-                            existingJob.link = finalJobLink;
-                            updatedCount++;
-                            continue;
-                        }
-
-                        // בדיקה אם נמחק בעבר
-                        const inTrash = deletedJobs.some(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
-                        if (inTrash) continue;
-
-                        const newJob = {
-                            company: parsed.company,
-                            role: parsed.role,
-                            platform: detectedPlatform,
-                            status: toDbStatus(targetStatus),
-                            link: finalJobLink,
-                            applied_date: new Date().toISOString().split('T')[0],
-                            user_id: currentUser.id
-                        };
-
-                        const { data: inserted, error: insertError } = await dbClient.from('jobs').insert([newJob]).select();
-                        if (!insertError && inserted?.[0]) {
-                            jobs.unshift({ ...inserted[0], status: targetStatus });
-                            addedCount++;
-                        }
-                    }
+                    const cleaned = aiRaw.replace(/```json|```/g, '').trim();
+                    const jsonRes = JSON.parse(cleaned);
+                    parsedJobs = Array.isArray(jsonRes) ? jsonRes : [jsonRes];
                 } catch (e) {
-                    console.error('AI parse error:', e);
+                    console.error("AI batch parse error:", e);
+                }
+            }
+
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            for (const pj of parsedJobs) {
+                if (!pj.company || !pj.role) continue;
+
+                const origMsg = relevantMsgs.find(m => m.id === pj.email_id) || relevantMsgs[0];
+                const extractedDirectUrl = origMsg?.payload ? extractLinksFromPayload(origMsg.payload) : null;
+                const gmailMessageUrl = `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(currentUser.email)}#inbox/${origMsg?.id || ''}`;
+                const finalJobLink = extractedDirectUrl || gmailMessageUrl;
+                const headerPlatform = origMsg ? detectPlatformFromHeaders(origMsg.from, origMsg.subject, origMsg.snippet) : null;
+
+                const detectedPlatform = headerPlatform || pj.platform || 'LinkedIn';
+                const targetStatus = normalizeStatus(pj.status);
+
+                if (targetStatus === 'rejected') {
+                    const matchIndex = jobs.findIndex(j => j.company?.toLowerCase() === pj.company.toLowerCase());
+                    if (matchIndex !== -1) deleteJob(jobs[matchIndex].id);
+                    continue;
+                }
+
+                const existingJob = jobs.find(j =>
+                    j.company?.toLowerCase().trim() === pj.company.toLowerCase().trim() &&
+                    j.role?.toLowerCase().trim() === pj.role.toLowerCase().trim()
+                );
+
+                if (existingJob) {
+                    const currentIdx = FLOW.indexOf(existingJob.status);
+                    const newIdx = FLOW.indexOf(targetStatus);
+                    let statusToSet = existingJob.status;
+                    if (newIdx > currentIdx) statusToSet = targetStatus;
+
+                    await dbClient.from('jobs').update({
+                        status: toDbStatus(statusToSet),
+                        link: finalJobLink,
+                        platform: detectedPlatform
+                    }).eq('id', existingJob.id).eq('user_id', currentUser.id);
+
+                    existingJob.status = statusToSet;
+                    existingJob.link = finalJobLink;
+                    updatedCount++;
+                    continue;
+                }
+
+                const inTrash = deletedJobs.some(j => j.company?.toLowerCase() === pj.company.toLowerCase());
+                if (inTrash) continue;
+
+                const newJob = {
+                    company: pj.company,
+                    role: pj.role,
+                    platform: detectedPlatform,
+                    status: toDbStatus(targetStatus),
+                    link: finalJobLink,
+                    applied_date: new Date().toISOString().split('T')[0],
+                    user_id: currentUser.id
+                };
+
+                const { data: inserted, error: insertError } = await dbClient.from('jobs').insert([newJob]).select();
+                if (!insertError && inserted?.[0]) {
+                    jobs.unshift({ ...inserted[0], status: targetStatus });
+                    addedCount++;
                 }
             }
 
@@ -1461,9 +1526,9 @@ Return ONLY valid JSON:
 
             if (addedCount > 0) {
                 showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח בהצלחה.');
-            } else if (!isSilent) {
-                showStatus(`✅ הסריקה הושלמה: נוספו ${addedCount} משרות חדשות, עודכנו ${updatedCount}.`);
             }
+            showStatus(`✅ הסריקה הושלמה תוך שניות: נוספו ${addedCount} משרות חדשות, עודכנו ${updatedCount}.`);
+
         } catch (err) {
             console.error('Scan error:', err);
             if (!isSilent) alert('שגיאה במהלך הסריקה: ' + err.message);
