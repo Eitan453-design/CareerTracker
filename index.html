@@ -739,7 +739,6 @@
     let sortedCandidateModels = null;
     const FLOW = ['discovered', 'applied', 'interview', 'offer'];
 
-    // מיפוי נקי ומדויק בין שמות העמודות בממשק לשמות השמורים ב-Supabase
     function normalizeStatus(status) {
         if (!status) return 'discovered';
         const s = String(status).toLowerCase().trim();
@@ -812,6 +811,7 @@
         await loadJobs();
     }
 
+    // תפיסת מפתח ה-token מכל מקור אפשרי
     dbClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.provider_token) {
             localStorage.setItem('cp_google_provider_token', session.provider_token);
@@ -834,11 +834,12 @@
     });
 
     async function init() {
+        // שמירת ה-token ישירות מכתובת ה-URL בעת חזרה ראשונה מ-OAuth
         if (window.location.hash) {
             const hashParams = new URLSearchParams(window.location.hash.substring(1));
-            const hashProviderToken = hashParams.get('provider_token');
-            if (hashProviderToken) {
-                localStorage.setItem('cp_google_provider_token', hashProviderToken);
+            const pt = hashParams.get('provider_token');
+            if (pt) {
+                localStorage.setItem('cp_google_provider_token', pt);
             }
         }
 
@@ -918,12 +919,12 @@
             };
 
             const forwardBtn = currentStatus !== 'offer' 
-                ? `<button class="btn-card-action btn-move" onclick="moveJob(${job.id}, '${currentStatus}')">קדם ←</button>` : '';
+                ? `<button class="btn-card-action btn-move" onclick="moveJob('${job.id}', '${currentStatus}')">קדם ←</button>` : '';
             const backBtn = currentStatus !== 'discovered'
-                ? `<button class="btn-card-action btn-back" onclick="regressJob(${job.id}, '${currentStatus}')">➔ החזר</button>` : '';
+                ? `<button class="btn-card-action btn-back" onclick="regressJob('${job.id}', '${currentStatus}')">➔ החזר</button>` : '';
 
             const quickApplyBtn = currentStatus === 'discovered'
-                ? `<button class="btn-card-action btn-apply-fast" onclick="markAsApplied(${job.id})">הגשתי! העבר ל-הוגש ✅</button>` : '';
+                ? `<button class="btn-card-action btn-apply-fast" onclick="markAsApplied('${job.id}')">הגשתי! העבר ל-הוגש ✅</button>` : '';
 
             card.innerHTML = `
                 <h4>${job.company}</h4>
@@ -936,7 +937,7 @@
                 <div class="card-actions">
                     ${forwardBtn}
                     ${backBtn}
-                    <button class="btn-card-action btn-del" onclick="deleteJob(${job.id})">מחק</button>
+                    <button class="btn-card-action btn-del" onclick="deleteJob('${job.id}')">מחק</button>
                 </div>
             `;
             col.appendChild(card);
@@ -1031,8 +1032,8 @@
                     <p>${job.role} • <span style="color:#64d2ff;">${getStatusHebrew(job.original_col || job.status)}</span></p>
                 </div>
                 <div class="trash-actions">
-                    <button class="btn-restore" onclick="restoreJob(${job.id})">↩️ שחזר</button>
-                    <button class="btn-trash-del" onclick="permanentlyDeleteJob(${job.id})" title="מחק לצמיתות">✕</button>
+                    <button class="btn-restore" onclick="restoreJob('${job.id}')">↩️ שחזר</button>
+                    <button class="btn-trash-del" onclick="permanentlyDeleteJob('${job.id}')" title="מחק לצמיתות">✕</button>
                 </div>
             `;
             listEl.appendChild(card);
@@ -1043,7 +1044,6 @@
         const job = jobs.find(j => String(j.id) === String(id));
         if (!job) return;
 
-        // שמירת הסטטוס המקורי המדויק
         const exactStatus = normalizeStatus(job.status);
         const jobToSave = {
             ...job,
@@ -1071,7 +1071,6 @@
         if (jobIndex === -1) return;
 
         const jobToRestore = deletedJobs[jobIndex];
-        // שחזור בדיוק לעמודה שממנה נמחקה
         const targetStatus = normalizeStatus(jobToRestore.original_col || jobToRestore.status);
 
         deletedJobs.splice(jobIndex, 1);
@@ -1319,38 +1318,41 @@
         return 'אתר החברה';
     }
 
+    // פונקציית סריקה מתוקנת ומורחבת הכוללת את כל התיקיות ב-Gmail
     async function scanGmailForJobs(isSilent = false) {
         if (!currentUser) return;
 
         const { data: { session } } = await dbClient.auth.getSession();
-        const token = session?.provider_token || localStorage.getItem('cp_google_provider_token');
+        let token = session?.provider_token || localStorage.getItem('cp_google_provider_token');
         
         if (!token) {
             if (!isSilent) {
-                alert('נא ללחוץ על "התנתק" ולהתחבר מחדש עם Google פעם אחת.');
+                alert('מפתח הגישה ל-Gmail לא נמצא.\nיש ללחוץ על "התנתק" ולהתחבר מחדש עם Google כדי לאשר קריאת מיילים.');
             }
             return;
         }
 
-        if (!isSilent) showStatus('סורק את תיבת ה-Gmail...');
+        if (!isSilent) showStatus('מתחבר ל-Gmail וסורק מיילים מכל הלשוניות (כולל LinkedIn והודעות בדיקה)...');
 
         try {
-            // שאילתה ישירה ללא הגבלת subject שתופסת מיידית כל מייל שקשור למשרות
-            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15`, {
+            // שליפת 25 המיילים האחרונים ללא סינון מגביל, כולל Social ו-Promotions
+            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&includeSpamTrash=false`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (listRes.status === 401) {
                 localStorage.removeItem('cp_google_provider_token');
-                if (!isSilent) showStatus('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש.');
+                if (!isSilent) alert('תוקף ההרשאה פג. יש ללחוץ על "התנתק" ולהתחבר מחדש עם Google.');
                 return;
             }
 
             const listData = await listRes.json();
-            if (!listData.messages?.length) {
+            if (!listData.messages || listData.messages.length === 0) {
                 if (!isSilent) showStatus('לא נמצאו הודעות בתיבת ה-Gmail.');
                 return;
             }
+
+            if (!isSilent) showStatus(`נמצאו ${listData.messages.length} מיילים אחרונים. בודק התאמה למשרות ו-LinkedIn...`);
 
             let addedCount = 0;
             let updatedCount = 0;
@@ -1365,9 +1367,10 @@
                 const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
                 const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
 
-                // סינון ראשוני מהיר: בודק אם המייל קשור לעבודה/משרות
-                const combinedCheck = `${subject} ${snippet}`.toLowerCase();
-                const isRelevant = /משרה|משרות|דרושים|ראיון|ראיונות|מועמדות|אלביט|אינטל|job|jobs|interview|applied|hiring|career/i.test(combinedCheck);
+                // סינון ראשוני רחב מאוד שכולל לינקדאין, מיילים עצמיים, משרות וראיונות
+                const combinedCheck = `${subject} ${from} ${snippet}`.toLowerCase();
+                const isRelevant = /linkedin|alljobs|drushim|משרה|משרות|דרושים|ראיון|ראיונות|מועמדות|אלביט|אינטל|job|jobs|hiring|career/i.test(combinedCheck);
+                
                 if (!isRelevant) continue;
 
                 const bodyText = extractFullEmailText(msgData.payload) || snippet;
@@ -1376,21 +1379,21 @@
                 const finalJobLink = extractedDirectUrl || gmailMessageUrl;
                 const headerPlatform = detectPlatformFromHeaders(from, subject, snippet);
 
-                const promptText = `Analyze this email regarding jobs/recruitment. 
-NOTE: The email may be sent from the user themselves for testing purposes! Extract the job information mentioned inside.
+                const promptText = `Analyze this email to extract job application or job alert details.
+The email might be from LinkedIn, a job portal, an employer, OR sent from the user themselves for testing!
+
 Subject: "${subject}"
 From: "${from}"
-Content: "${bodyText.slice(0, 1500)}"
+Snippet/Body: "${bodyText.slice(0, 1500)}"
 
-Instructions:
-1. company: Company name (e.g. "אלביט מערכות"). If not job-related, return null.
-2. role: Position/Role title (e.g. "מהנדס PMO"). If not job-related, return null.
+Extract:
+1. company: Company name (e.g. "אלביט מערכות", "Google", "LinkedIn Jobs", etc.). Return null ONLY if totally unrelated to work or careers.
+2. role: Position/Role title (e.g. "מהנדס PMO", "Full Stack Developer"). If not specified, return "הזדמנות תעסוקה".
 3. status: 
-   - "discovered": If this is a job alert, new job post, or recommendation ("משרות חדשות", "משרות שעשויות לעניין אותך", "New job posted").
-   - "applied": If application was submitted ("תודה שהגשת", "מועמדותך התקבלה", "Application received").
-   - "interview": If an interview, meeting or phone screen is mentioned ("זימון לראיון", "ראיון היכרות").
-   - "offer": If job offer or contract is mentioned.
-   - "rejected": If rejected ("החלטנו להמשיך עם מועמדים אחרים").
+   - "discovered": If this is a job alert, suggestion, recommendation ("משרות שעשויות לעניין אותך", "job alert", "new position").
+   - "applied": If application submitted or received ("תודה שהגשת", "Application received").
+   - "interview": If interview or phone call mentioned.
+   - "offer": If offer or contract mentioned.
 4. platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", or "אתר החברה".
 
 Return ONLY valid JSON:
@@ -1403,16 +1406,7 @@ Return ONLY valid JSON:
                 try {
                     const parsed = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());
                     if (parsed.company && parsed.role) {
-                        const detectedPlatform = headerPlatform || parsed.platform || 'אתר החברה';
-
-                        if (parsed.status === 'rejected') {
-                            const matchIndex = jobs.findIndex(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
-                            if (matchIndex !== -1) {
-                                deleteJob(jobs[matchIndex].id);
-                            }
-                            continue;
-                        }
-
+                        const detectedPlatform = headerPlatform || parsed.platform || 'LinkedIn';
                         const targetStatus = normalizeStatus(parsed.status);
 
                         const existingJob = jobs.find(j =>
@@ -1438,6 +1432,7 @@ Return ONLY valid JSON:
                             continue;
                         }
 
+                        // בדיקה אם נמחק בעבר
                         const inTrash = deletedJobs.some(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
                         if (inTrash) continue;
 
@@ -1452,15 +1447,13 @@ Return ONLY valid JSON:
                         };
 
                         const { data: inserted, error: insertError } = await dbClient.from('jobs').insert([newJob]).select();
-                        if (insertError) {
-                            console.error('Insert job error:', insertError);
-                        } else if (inserted?.[0]) {
+                        if (!insertError && inserted?.[0]) {
                             jobs.unshift({ ...inserted[0], status: targetStatus });
                             addedCount++;
                         }
                     }
                 } catch (e) {
-                    console.error('JSON parse error:', e);
+                    console.error('AI parse error:', e);
                 }
             }
 
@@ -1469,11 +1462,11 @@ Return ONLY valid JSON:
             if (addedCount > 0) {
                 showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח בהצלחה.');
             } else if (!isSilent) {
-                showStatus(`✅ הסריקה הושלמה (נוספו ${addedCount}, עודכנו ${updatedCount}).`);
+                showStatus(`✅ הסריקה הושלמה: נוספו ${addedCount} משרות חדשות, עודכנו ${updatedCount}.`);
             }
         } catch (err) {
             console.error('Scan error:', err);
-            if (!isSilent) showStatus('שגיאה בסריקה: ' + err.message);
+            if (!isSilent) alert('שגיאה במהלך הסריקה: ' + err.message);
         }
     }
 
