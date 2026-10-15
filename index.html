@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CareerPilot AI</title>
+    <title>CareerTracker</title>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -228,7 +228,7 @@
         }
         .ios-btn-glass:hover { background: rgba(255, 255, 255, 0.16); }
 
-        /* --- הודעת סטטוס חכמה --- */
+        /* --- הודעת סטטוס --- */
         #statusBanner {
             display: none;
             background: rgba(10, 132, 255, 0.15);
@@ -242,7 +242,53 @@
             text-align: center;
         }
 
-        /* --- לוח הקנבן הנקי (4 עמודות מרווחות) --- */
+        /* --- פופ-אפ התראה צף למשרות חדשות (Toast) --- */
+        #jobToast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(48, 209, 88, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            border-radius: 20px;
+            padding: 16px 20px;
+            z-index: 99;
+            display: none;
+            align-items: center;
+            gap: 14px;
+            animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 420px;
+        }
+        @keyframes slideInUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        #jobToast .toast-content { flex: 1; }
+        #jobToast .toast-title { font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 2px; }
+        #jobToast .toast-sub { font-size: 13px; color: var(--text-secondary); }
+        #jobToast .toast-btn {
+            background: var(--ios-green);
+            color: #000;
+            font-weight: 700;
+            border: none;
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        /* הדגשה זוהרת לכרטיסייה חדשה */
+        .highlight-pulse {
+            animation: pulseCard 1.8s ease-in-out infinite alternate;
+        }
+        @keyframes pulseCard {
+            from { box-shadow: 0 0 10px rgba(10, 132, 255, 0.4); border-color: var(--ios-blue); }
+            to { box-shadow: 0 0 24px rgba(48, 209, 88, 0.7); border-color: var(--ios-green); }
+        }
+
+        /* --- לוח קנבן --- */
         .kanban-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -296,18 +342,20 @@
             border-radius: 999px;
         }
 
-        /* --- כרטיסיית משרה בסגנון iOS --- */
+        /* --- כרטיסיית משרה --- */
         .job-card {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             border-radius: 18px;
             padding: 16px;
             margin-bottom: 12px;
-            transition: transform 0.2s ease, background 0.2s ease;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
         }
         .job-card:hover {
             background: var(--bg-card-hover);
             transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
         }
         .job-card h4 {
             font-size: 17px;
@@ -336,25 +384,6 @@
             border-radius: 999px;
             font-size: 12px;
             font-weight: 600;
-        }
-        .btn-link-ad {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 6px;
-            background: rgba(10, 132, 255, 0.12);
-            color: #64d2ff;
-            padding: 9px 12px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            margin-bottom: 10px;
-            transition: 0.2s ease;
-        }
-        .btn-link-ad:hover {
-            background: var(--ios-blue);
-            color: #ffffff;
         }
         .card-actions {
             display: flex;
@@ -387,7 +416,7 @@
             opacity: 0.6;
         }
 
-        /* --- חלוניות קופצות נקיות (iOS Modals) --- */
+        /* --- חלוניות Modals --- */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -405,7 +434,7 @@
             border: 1px solid var(--border-subtle);
             border-radius: 24px;
             width: 100%;
-            max-width: 460px;
+            max-width: 500px;
             padding: 28px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.5);
         }
@@ -439,21 +468,36 @@
         }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ios-blue); }
         textarea { min-height: 120px; resize: vertical; }
+
+        /* חלונית פרטי משרה ייעודית */
+        .job-detail-snippet {
+            background: #2c2c2e;
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 14px;
+            color: #d1d1d6;
+            line-height: 1.6;
+            margin-top: 14px;
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- מסך פתיחה / עמוד נחיתה בסגנון Apple -->
+    <!-- מסך פתיחה -->
     <div id="landingView">
-        <div class="apple-pill">🚀 CareerPilot AI • מופעל באמצעות Gemini</div>
+        <div class="apple-pill">🚀 CareerTracker • מופעל באמצעות Gemini</div>
         <h1 class="hero-title">
             שולחים קורות חיים לכל כיוון ומאבדים מעקב?<br>
             <span class="hero-title-sub">הכלי שאוסף ומסדר עבורכם את כל המועמדויות במקום אחד.</span><br>
             <span class="hero-title-accent">פשוט, חכם ואוטומטי.</span>
         </h1>
         <p class="hero-subtitle">
-            המערכת סורקת עבורך את המיילים, מזהה מאיזה אתר הגיעה כל משרה, מצרפת קישור ישיר למודעה ומסדרת הכל בלוח אישי ונקי.
+            המערכת סורקת עבורך את המיילים בכל כניסה לאתר, מזהה מאיזה אתר הגיעה כל משרה, מצרפת קישור ישיר ומסדרת הכל בלוח אישי.
         </p>
 
         <div class="hero-actions">
@@ -469,13 +513,13 @@
         <div class="features-showcase">
             <div class="showcase-card">
                 <span class="showcase-icon">📬</span>
-                <h3>סריקת מיילים בלחיצה אחת</h3>
-                <p>מתממשק ל-Gmail ותומך בפענוח חכם מכל תיבת מייל אחרת (Outlook, iCloud, Yahoo) ללא הגדרות מסובכות.</p>
+                <h3>סריקה אוטומטית שקטה</h3>
+                <p>בכל פעם שתיכנס לאתר, ה-AI יסרוק ברקע את ה-Gmail ויתריע בפופ-אפ עדין על כל משרה או תגובה חדשה.</p>
             </div>
             <div class="showcase-card">
-                <span class="showcase-icon">🔗</span>
-                <h3>מעבר ישיר למודעה</h3>
-                <p>כל כרטיסייה מציגה מאיזה אתר הגיעה המשרה (LinkedIn, AllJobs, דרושים) וכוללת כפתור מעבר מהיר למודעה.</p>
+                <span class="showcase-icon">🔍</span>
+                <h3>תצוגת מודעה ומייל מלאה</h3>
+                <p>לחיצה על כל כרטיסייה פותחת את תוכן המייל המלא עם קישור ישיר למודעה באתר הדרושים או ב-Gmail.</p>
             </div>
             <div class="showcase-card">
                 <span class="showcase-icon">🔒</span>
@@ -485,16 +529,16 @@
         </div>
     </div>
 
-    <!-- מסך הלוח הראשי הנקי -->
+    <!-- לוח ראשי -->
     <div id="appView">
         <nav class="ios-navbar">
             <div class="brand-area">
-                <div class="logo" onclick="showLandingPage()" title="חזרה למסך הפתיחה">🚀 CareerPilot</div>
+                <div class="logo" onclick="showLandingPage()" title="חזרה למסך הפתיחה">🚀 CareerTracker</div>
                 <span id="userStatus" class="user-pill">טוען...</span>
             </div>
 
             <div class="action-bar">
-                <button class="ios-btn ios-btn-blue" onclick="scanGmailForJobs()">📬 סרוק מ-Gmail</button>
+                <button class="ios-btn ios-btn-blue" onclick="scanGmailForJobs(false)">📬 סרוק כעת מ-Gmail</button>
                 <button class="ios-btn ios-btn-indigo" onclick="openModal('pasteModal')">✉️ מייל אחר / הדבקה חכמה</button>
                 <button class="ios-btn ios-btn-glass" onclick="openModal('addModal')">➕ הוסף משרה</button>
                 <button class="ios-btn ios-btn-glass" id="authBtn" onclick="handleAuth()">התנתק</button>
@@ -539,7 +583,46 @@
     </div>
 </div>
 
-<!-- חלונית הוספת משרה ידנית (נפתחת רק כשצריך) -->
+<!-- פופ-אפ צף להתראה על משרות חדשות (Toast) -->
+<div id="jobToast">
+    <div class="toast-content">
+        <div class="toast-title" id="toastTitle">🎉 נמצאו משרות חדשות!</div>
+        <div class="toast-sub" id="toastSub">ה-AI סרק את ה-Gmail ועדכן את הלוח שלך.</div>
+    </div>
+    <button class="toast-btn" id="toastActionBtn" onclick="focusOnNewJobs()">הצג בלוח 👀</button>
+</div>
+
+<!-- חלונית הצגת פרטי משרה מלאים -->
+<div class="modal-overlay" id="jobDetailModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="modalJobCompany">חברה</h3>
+            <button class="close-btn" onclick="closeModal('jobDetailModal')">✕</button>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <div style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px;" id="modalJobRole">תפקיד</div>
+            <div style="display: flex; gap: 8px; align-items: center; font-size: 13px;">
+                <span class="platform-badge" id="modalJobPlatform">פלטפורמה</span>
+                <span style="color: var(--text-secondary);" id="modalJobDate">תאריך</span>
+                <span style="color: var(--text-secondary); margin-right: auto;" id="modalJobStatus">סטטוס</span>
+            </div>
+        </div>
+        
+        <div style="margin-top: 14px;">
+            <label>תוכן / תקציר המייל שהתקבל:</label>
+            <div class="job-detail-snippet" id="modalJobSnippet">אין תקציר זמין.</div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <a id="modalJobLink" href="#" target="_blank" rel="noopener noreferrer" class="ios-btn ios-btn-blue" style="flex: 1; justify-content: center; text-decoration: none; padding: 14px;">
+                🔗 מעבר ישיר למודעה / למייל ↗
+            </a>
+            <button class="ios-btn ios-btn-glass" onclick="closeModal('jobDetailModal')">סגור</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal הוספה ידנית -->
 <div class="modal-overlay" id="addModal">
     <div class="modal-box">
         <div class="modal-header">
@@ -584,7 +667,7 @@
     </div>
 </div>
 
-<!-- חלונית פענוח חכם מכל תיבת מייל אחרת (Outlook, iCloud, Yahoo וכו') -->
+<!-- Modal הדבקה חכמה -->
 <div class="modal-overlay" id="pasteModal">
     <div class="modal-box">
         <div class="modal-header">
@@ -611,6 +694,7 @@
 
     let jobs = [];
     let currentUser = null;
+    let newlyAddedJobIds = [];
     let verifiedModel = null;
     let sortedCandidateModels = null;
 
@@ -621,6 +705,57 @@
         const banner = document.getElementById('statusBanner');
         banner.style.display = 'block';
         banner.textContent = text;
+    }
+
+    function showToast(title, sub, buttonText = 'הצג בלוח 👀') {
+        const toast = document.getElementById('jobToast');
+        document.getElementById('toastTitle').textContent = title;
+        document.getElementById('toastSub').textContent = sub;
+        document.getElementById('toastActionBtn').textContent = buttonText;
+        toast.style.display = 'flex';
+        setTimeout(() => { toast.style.display = 'none'; }, 9000);
+    }
+
+    function focusOnNewJobs() {
+        document.getElementById('jobToast').style.display = 'none';
+        newlyAddedJobIds.forEach(id => {
+            const el = document.getElementById(`job-card-${id}`);
+            if (el) {
+                el.classList.add('highlight-pulse');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+        setTimeout(() => {
+            newlyAddedJobIds.forEach(id => {
+                const el = document.getElementById(`job-card-${id}`);
+                if (el) el.classList.remove('highlight-pulse');
+            });
+        }, 5000);
+    }
+
+    function openJobDetails(jobId) {
+        const job = jobs.find(j => j.id === jobId);
+        if (!job) return;
+
+        document.getElementById('modalJobCompany').textContent = job.company;
+        document.getElementById('modalJobRole').textContent = job.role;
+        document.getElementById('modalJobPlatform').textContent = `🌐 ${job.platform || 'אתר החברה'}`;
+        document.getElementById('modalJobDate').textContent = job.applied_date ? `תאריך: ${job.applied_date}` : '';
+        
+        const statusMap = { saved: 'נשמר', applied: 'הוגש', interview: 'ראיונות', offer: 'הצעה' };
+        document.getElementById('modalJobStatus').textContent = `סטטוס: ${statusMap[job.status] || job.status}`;
+        document.getElementById('modalJobSnippet').textContent = job.snippet || job.notes || 'פרטי משרה שנשמרו בהצלחה במערכת.';
+
+        const linkBtn = document.getElementById('modalJobLink');
+        if (job.link) {
+            linkBtn.href = job.link;
+            linkBtn.style.display = 'inline-flex';
+            linkBtn.textContent = job.link.includes('mail.google.com') ? '📩 פתח מייל מקורי ב-Gmail ↗' : '🔗 מעבר ישיר למודעה באתר ↗';
+        } else {
+            linkBtn.style.display = 'none';
+        }
+
+        openModal('jobDetailModal');
     }
 
     function showDashboardView() {
@@ -645,16 +780,30 @@
         await loadJobs();
     }
 
+    dbClient.auth.onAuthStateChange((event, session) => {
+        if (session?.provider_token) {
+            sessionStorage.setItem('cp_google_provider_token', session.provider_token);
+        }
+    });
+
     async function init() {
         try {
             const { data: { session } } = await dbClient.auth.getSession();
             if (session && session.user) {
                 currentUser = session.user;
+                if (session.provider_token) {
+                    sessionStorage.setItem('cp_google_provider_token', session.provider_token);
+                }
                 localStorage.removeItem('cp_jobs');
                 document.getElementById('userStatus').textContent = `🟢 ${currentUser.email}`;
                 document.getElementById('authBtn').textContent = 'התנתק';
                 showDashboardView();
                 await loadJobs();
+
+                // סריקה אוטומטית שקטה ברקע בכל כניסה לאתר
+                setTimeout(() => {
+                    scanGmailForJobs(true);
+                }, 1500);
             } else {
                 currentUser = null;
                 jobs = [];
@@ -696,14 +845,15 @@
             const col = document.getElementById(`col-${job.status}-list`);
             if (!col) return;
 
-            const isGmailLink = job.link && job.link.includes('mail.google.com');
-            const linkLabel = isGmailLink ? '📩 פתח מייל מקורי' : '🔗 למעבר למודעה';
-            const linkHtml = job.link
-                ? `<a href="${job.link}" target="_blank" rel="noopener noreferrer" class="btn-link-ad">${linkLabel} ↗</a>`
-                : '';
-
             const card = document.createElement('div');
             card.className = 'job-card';
+            card.id = `job-card-${job.id}`;
+            card.onclick = (e) => {
+                if (!e.target.closest('.card-actions')) {
+                    openJobDetails(job.id);
+                }
+            };
+
             card.innerHTML = `
                 <h4>${job.company}</h4>
                 <p>${job.role}</p>
@@ -711,9 +861,8 @@
                     <span class="platform-badge">🌐 ${job.platform || 'אתר החברה'}</span>
                     <span>${job.applied_date || ''}</span>
                 </div>
-                ${linkHtml}
                 <div class="card-actions">
-                    <button class="btn-card-action btn-move" onclick="moveJob(${job.id}, '${job.status}')">קדם שלב ➔</button>
+                    <button class="btn-card-action btn-move" onclick="moveJob(${job.id}, '${job.status}')">קדם ➔</button>
                     <button class="btn-card-action btn-del" onclick="deleteJob(${job.id})">מחק</button>
                 </div>
             `;
@@ -797,6 +946,7 @@
     async function handleAuth() {
         if (currentUser) {
             await dbClient.auth.signOut();
+            sessionStorage.removeItem('cp_google_provider_token');
             currentUser = null;
             jobs = [];
             renderKanban();
@@ -816,7 +966,7 @@
 
     async function getNewestModelsList() {
         if (sortedCandidateModels) return sortedCandidateModels;
-        const fallbackModels = ['models/gemini-3.8-flash', 'models/gemini-3.5-flash-lite', 'models/gemini-flash-latest'];
+        const fallbackModels = ['models/gemini-2.5-flash', 'models/gemini-2.0-flash', 'models/gemini-1.5-flash'];
         try {
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
             const data = await res.json();
@@ -887,6 +1037,7 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
                     platform: parsed.platform || 'מייל חיצוני',
                     status: ['saved', 'applied', 'interview', 'offer'].includes(parsed.status) ? parsed.status : 'saved',
                     link: extractedUrl,
+                    snippet: rawText.slice(0, 500),
                     applied_date: new Date().toISOString().split('T')[0]
                 };
 
@@ -949,16 +1100,21 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
         return null;
     }
 
-    async function scanGmailForJobs() {
+    // פונקציית סריקה משודרגת התומכת בריצה שקטה בעליית העמוד
+    async function scanGmailForJobs(isSilent = false) {
         if (!currentUser) {
-            return alert('כדי לסרוק אוטומטית מ-Gmail יש להתחבר עם Google. לתיבות מייל אחרות לחץ על "✉️ מייל אחר / הדבקה חכמה".');
+            if (!isSilent) alert('כדי לסרוק אוטומטית מ-Gmail יש להתחבר עם Google.');
+            return;
         }
 
         const { data: { session } } = await dbClient.auth.getSession();
-        const token = session?.provider_token;
-        if (!token) return alert('נא להתנתק ולהתחבר מחדש כדי לאשר גישה ל-Gmail.');
+        const token = session?.provider_token || sessionStorage.getItem('cp_google_provider_token');
+        if (!token) {
+            if (!isSilent) alert('נא להתנתק ולהתחבר מחדש עם Google כדי לאשר סריקת Gmail.');
+            return;
+        }
 
-        showStatus('סורק את תיבת ה-Gmail באמצעות המודל החדש ביותר של Gemini...');
+        if (!isSilent) showStatus('סורק את תיבת ה-Gmail באמצעות Gemini AI...');
 
         try {
             const searchTerms = [
@@ -969,12 +1125,22 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
             const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchTerms)}&maxResults=15`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            const listData = await listRes.json();
 
-            if (!listData.messages?.length) return showStatus('לא נמצאו הודעות דרושים חדשות ב-Gmail.');
+            if (listRes.status === 401) {
+                sessionStorage.removeItem('cp_google_provider_token');
+                if (!isSilent) showStatus('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש עם Google.');
+                return;
+            }
+
+            const listData = await listRes.json();
+            if (!listData.messages?.length) {
+                if (!isSilent) showStatus('לא נמצאו הודעות דרושים חדשות ב-Gmail.');
+                return;
+            }
 
             let addedCount = 0;
             let updatedCount = 0;
+            newlyAddedJobIds = [];
 
             for (const msg of listData.messages) {
                 const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
@@ -1015,9 +1181,10 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
 
                         if (existingJob) {
                             if (!existingJob.link || existingJob.platform === 'Gmail AI') {
-                                await dbClient.from('jobs').update({ platform: detectedPlatform, link: finalJobLink }).eq('id', existingJob.id).eq('user_id', currentUser.id);
+                                await dbClient.from('jobs').update({ platform: detectedPlatform, link: finalJobLink, snippet: snippet }).eq('id', existingJob.id).eq('user_id', currentUser.id);
                                 existingJob.platform = detectedPlatform;
                                 existingJob.link = finalJobLink;
+                                existingJob.snippet = snippet;
                                 updatedCount++;
                             }
                             continue;
@@ -1029,12 +1196,14 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             platform: detectedPlatform,
                             status: ['saved', 'applied', 'interview', 'offer'].includes(parsed.status) ? parsed.status : 'applied',
                             link: finalJobLink,
+                            snippet: snippet,
                             applied_date: new Date().toISOString().split('T')[0],
                             user_id: currentUser.id
                         };
                         const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
                         if (inserted?.[0]) {
                             jobs.unshift(inserted[0]);
+                            newlyAddedJobIds.push(inserted[0].id);
                             addedCount++;
                         }
                     }
@@ -1042,9 +1211,15 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
             }
 
             renderKanban();
-            showStatus(`✅ הסריקה הושלמה! נוספו ${addedCount} משרות חדשות ועודכנו ${updatedCount} משרות קיימות.`);
+
+            // אם נמצאו משרות חדשות בסריקה - מציג פופ-אפ התראה מעוצב
+            if (addedCount > 0) {
+                showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח. לחץ כדי להדגיש אותן.');
+            } else if (!isSilent) {
+                showStatus(`✅ הסריקה הושלמה! לא נמצאו משרות חדשות (עודכנו ${updatedCount} משרות).`);
+            }
         } catch (err) {
-            showStatus('שגיאה בסריקת המיילים: ' + err.message);
+            if (!isSilent) showStatus('שגיאה בסריקת המיילים: ' + err.message);
         }
     }
 
