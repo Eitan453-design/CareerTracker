@@ -360,7 +360,6 @@
             color: #d1d1d6;
         }
         .tag-platform { background: rgba(10, 132, 255, 0.14); color: #64d2ff; }
-        .tag-jobtype { background: rgba(191, 90, 242, 0.14); color: #d8b4fe; }
 
         .card-actions {
             display: flex;
@@ -555,8 +554,8 @@
             </div>
             <div class="showcase-card">
                 <span class="showcase-icon">🎯</span>
-                <h3>תגיות חכמות וסוג משרה</h3>
-                <p>זיהוי אוטומטי של משרה מלאה, סטודנט, היברידי וקישור ישיר למודעה.</p>
+                <h3>שחזור מודעות מדויק</h3>
+                <p>מודעה שנמחקה חוזרת בדיוק לאותה עמודה שממנה היא הוסרה.</p>
             </div>
         </div>
     </div>
@@ -665,7 +664,7 @@
             <div class="tag-row" id="modalTags"></div>
         </div>
         <div style="margin-top: 10px;">
-            <label>תקציר המייל / העדכון האחרון:</label>
+            <label>סטטוס נוכחי:</label>
             <div class="job-detail-snippet" id="modalJobSnippet">אין מידע נוסף.</div>
         </div>
         <div style="margin-top: 18px; display: flex; gap: 8px;">
@@ -692,14 +691,6 @@
             <div class="form-group">
                 <label>תפקיד</label>
                 <input type="text" id="role" placeholder="למשל: מהנדס תעשייה וניהול" required>
-            </div>
-            <div class="form-group">
-                <label>סוג משרה</label>
-                <select id="jobType">
-                    <option value="משרה מלאה">משרה מלאה</option>
-                    <option value="משרת סטודנט">משרת סטודנט</option>
-                    <option value="משרה חלקית">משרה חלקית</option>
-                </select>
             </div>
             <div class="form-group">
                 <label>שלב בלוח</label>
@@ -739,13 +730,7 @@
     const ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
     const GEMINI_API_KEY = ['AQ.Ab8', 'RN6IdQ', 'Z3ddKe', 'V8duVw', 'DnGR9W', 'kaXGz4', 'B1C8Nt', '2yVBW0', 'Tqc4Q'].join('');
 
-    const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY, {
-        auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            storageKey: 'careertracker_auth_session'
-        }
-    });
+    const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
     let jobs = [];
     let deletedJobs = [];
@@ -754,7 +739,6 @@
     let sortedCandidateModels = null;
     const FLOW = ['discovered', 'applied', 'interview', 'offer'];
 
-    // המרת שמות סטטוסים להתאמה מלאה לבסיס הנתונים
     function normalizeStatus(status) {
         if (!status) return 'discovered';
         if (status === 'saved' || status === 'discovered') return 'discovered';
@@ -765,7 +749,6 @@
     }
 
     function toDbStatus(status) {
-        // בסיס הנתונים מצפה ל-'saved' במקום 'discovered'
         if (status === 'discovered') return 'saved';
         return status;
     }
@@ -826,22 +809,22 @@
         await loadJobs();
     }
 
-    dbClient.auth.onAuthStateChange((event, session) => {
+    // מאזין לשינויי סטטוס התחברות עם טיפול בכל סוגי האירועים (כולל רענון דף INITIAL_SESSION)
+    dbClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.provider_token) {
             localStorage.setItem('cp_google_provider_token', session.provider_token);
         }
-        if (event === 'SIGNED_IN' && session?.user) {
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
             currentUser = session.user;
             document.getElementById('userStatus').textContent = `🟢 ${currentUser.email}`;
             document.getElementById('authBtn').textContent = 'התנתק';
             showDashboardView();
-            loadJobs();
+            await loadJobs();
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;
             jobs = [];
             deletedJobs = [];
             localStorage.removeItem('cp_google_provider_token');
-            localStorage.removeItem('careertracker_auth_session');
             renderKanban();
             renderTrash();
             showLandingPage();
@@ -849,8 +832,23 @@
     });
 
     async function init() {
+        // 1. לכידת ה-provider_token מתוך ה-hash בעת חזרה ראשונה מ-Google
+        if (window.location.hash) {
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const hashProviderToken = hashParams.get('provider_token');
+            if (hashProviderToken) {
+                localStorage.setItem('cp_google_provider_token', hashProviderToken);
+            }
+        }
+
         try {
             const { data: { session } } = await dbClient.auth.getSession();
+            
+            // 2. ניקוי ה-hash מהכתובת למעלה כדי שרענון (F5) לא ינסה לצרוך שוב מפתח שפג תוקפו
+            if (window.location.hash && window.location.hash.includes('access_token')) {
+                history.replaceState(null, '', window.location.pathname);
+            }
+
             if (session && session.user) {
                 currentUser = session.user;
                 if (session.provider_token) {
@@ -861,12 +859,13 @@
                 showDashboardView();
                 await loadJobs();
 
-                setTimeout(() => { scanGmailForJobs(true); }, 1500);
+                setTimeout(() => { scanGmailForJobs(true); }, 1200);
             } else {
                 currentUser = null;
                 showLandingPage();
             }
         } catch (e) {
+            console.error('Init error:', e);
             showLandingPage();
         }
     }
@@ -931,8 +930,7 @@
                 <p>${job.role}</p>
                 <div class="tag-row">
                     <span class="tag-badge tag-platform">🌐 ${job.platform || 'אתר החברה'}</span>
-                    <span class="tag-badge tag-jobtype">${job.job_type || 'משרה מלאה'}</span>
-                    ${job.work_model ? `<span class="tag-badge">${job.work_model}</span>` : ''}
+                    <span class="tag-badge">${job.applied_date || ''}</span>
                 </div>
                 ${quickApplyBtn}
                 <div class="card-actions">
@@ -979,13 +977,11 @@
 
         document.getElementById('modalJobCompany').textContent = job.company;
         document.getElementById('modalJobRole').textContent = job.role;
-        document.getElementById('modalJobSnippet').textContent = job.snippet || 'אין תקציר זמין עבור משרה זו.';
+        document.getElementById('modalJobSnippet').textContent = `שלב בלוח: ${getStatusHebrew(normalizeStatus(job.status))}\nתאריך הגשה/זיהוי: ${job.applied_date || 'היום'}`;
         
         const tagsContainer = document.getElementById('modalTags');
         tagsContainer.innerHTML = `
             <span class="tag-badge tag-platform">🌐 ${job.platform || 'אתר החברה'}</span>
-            <span class="tag-badge tag-jobtype">${job.job_type || 'משרה מלאה'}</span>
-            ${job.work_model ? `<span class="tag-badge">${job.work_model}</span>` : ''}
             <span class="tag-badge">${job.applied_date || ''}</span>
         `;
 
@@ -1047,7 +1043,7 @@
         const job = jobs.find(j => String(j.id) === String(id));
         if (!job) return;
 
-        // שמירת הסטטוס המקורי המדויק לפני המחיקה
+        // שמירת הסטטוס המדויק בפח המחזור
         const jobToSave = {
             ...job,
             status: normalizeStatus(job.status)
@@ -1084,21 +1080,19 @@
         };
 
         if (currentUser) {
+            // שולחים אך ורק עמודות שקיימות בטבלת Supabase כדי למנוע שגיאות 400!
             const restoreData = {
                 company: jobToRestore.company,
                 role: jobToRestore.role,
                 platform: jobToRestore.platform || 'אתר החברה',
                 status: toDbStatus(targetStatus),
                 link: jobToRestore.link || '',
-                snippet: jobToRestore.snippet || '',
-                job_type: jobToRestore.job_type || 'משרה מלאה',
-                work_model: jobToRestore.work_model || 'מהמשרד',
                 applied_date: jobToRestore.applied_date || new Date().toISOString().split('T')[0],
                 user_id: currentUser.id
             };
             const { data, error } = await dbClient.from('jobs').insert([restoreData]).select();
             if (error) {
-                console.error('Error restoring job to Supabase:', error);
+                console.error('שגיאה בשחזור מול Supabase:', error);
                 restoredItem.id = Date.now();
                 jobs.unshift(restoredItem);
             } else if (data && data[0]) {
@@ -1168,20 +1162,19 @@
             company: document.getElementById('company').value,
             role: document.getElementById('role').value,
             platform: 'הוספה ידנית',
-            status: selectedStatus,
-            job_type: document.getElementById('jobType').value,
+            status: toDbStatus(selectedStatus),
             link: document.getElementById('jobUrl').value,
             applied_date: new Date().toISOString().split('T')[0]
         };
 
         if (!currentUser) {
             newJob.id = Date.now();
+            newJob.status = selectedStatus;
             jobs.unshift(newJob);
             localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
         } else {
             newJob.user_id = currentUser.id;
-            const dbData = { ...newJob, status: toDbStatus(selectedStatus) };
-            const { data } = await dbClient.from('jobs').insert([dbData]).select();
+            const { data } = await dbClient.from('jobs').insert([newJob]).select();
             if (data && data[0]) {
                 jobs.unshift({ ...data[0], status: normalizeStatus(data[0].status) });
             }
@@ -1207,7 +1200,6 @@
         if (currentUser) {
             await dbClient.auth.signOut();
             localStorage.removeItem('cp_google_provider_token');
-            localStorage.removeItem('careertracker_auth_session');
             currentUser = null;
             jobs = [];
             deletedJobs = [];
@@ -1275,6 +1267,23 @@
         } catch (e) { return ''; }
     }
 
+    function extractFullEmailText(payload) {
+        let fullText = '';
+        function traverse(part) {
+            if (!part) return;
+            if (part.mimeType === 'text/plain' && part.body?.data) {
+                fullText += ' ' + decodeBase64Url(part.body.data);
+            } else if (part.mimeType === 'text/html' && part.body?.data && !fullText) {
+                const html = decodeBase64Url(part.body.data);
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                fullText += ' ' + (doc.body?.textContent || '');
+            }
+            if (part.parts) part.parts.forEach(traverse);
+        }
+        traverse(payload);
+        return fullText.trim();
+    }
+
     function extractLinksFromPayload(payload) {
         let rawContent = '';
         function traverse(part) {
@@ -1304,7 +1313,7 @@
         if (combined.includes('jobmaster')) return 'JobMaster';
         if (combined.includes('comeet')) return 'Comeet';
         if (combined.includes('greenhouse')) return 'Greenhouse';
-        return null;
+        return 'אתר החברה';
     }
 
     async function scanGmailForJobs(isSilent = false) {
@@ -1315,37 +1324,34 @@
         
         if (!token) {
             if (!isSilent) {
-                alert('לא נמצא מפתח גישה ל-Gmail.\nיש ללחוץ על "התנתק" ולהתחבר מחדש עם Google פעם אחת.');
+                alert('נא ללחוץ על "התנתק" ולהתחבר מחדש עם Google פעם אחת כדי לאשר קריאת Gmail.');
             }
             return;
         }
 
-        if (!isSilent) showStatus('סורק את תיבת ה-Gmail בחיפוש אחר משרות חדשות...');
+        if (!isSilent) showStatus('סורק את תיבת ה-Gmail...');
 
         try {
-            // שאילתת חיפוש מורחבת התומכת ביחיד ורבים בעברית ובאנגלית
-            const searchTerms = [
-                'subject:(משרה OR משרות OR "קורות חיים" OR "קו״ח" OR מועמדות OR ראיון OR ראיונות OR דרושים OR application OR applied OR interview OR job OR jobs OR offer OR hiring OR "הגשת מועמדות" OR "תודה שהגשת" OR "התאמה למשרה")',
-                'from:(comeet OR greenhouse OR lever OR workday OR linkedin OR alljobs OR drushim OR jobmaster)'
-            ].join(' OR ');
-
-            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchTerms)}&maxResults=15`, {
+            // שאילתת חיפוש רחבה וגמישה בלי הגבלות תחביריות שנכשלות בעברית
+            const query = 'משרה OR משרות OR מועמדות OR ראיון OR ראיונות OR דרושים OR job OR jobs OR interview OR application OR applied';
+            
+            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (listRes.status === 401) {
                 localStorage.removeItem('cp_google_provider_token');
-                if (!isSilent) showStatus('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש עם Google.');
+                if (!isSilent) showStatus('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש.');
                 return;
             }
 
             const listData = await listRes.json();
             if (!listData.messages?.length) {
-                if (!isSilent) showStatus('לא נמצאו הודעות דרושים חדשות ב-Gmail.');
+                if (!isSilent) showStatus('לא נמצאו הודעות דרושים ב-Gmail.');
                 return;
             }
 
-            if (!isSilent) showStatus(`נמצאו ${listData.messages.length} הודעות דרושים. מפענח באמצעות AI...`);
+            if (!isSilent) showStatus(`נמצאו ${listData.messages.length} הודעות. מפענח באמצעות AI...`);
 
             let addedCount = 0;
             let updatedCount = 0;
@@ -1360,31 +1366,31 @@
                 const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
                 const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
 
+                const bodyText = extractFullEmailText(msgData.payload) || snippet;
                 const extractedDirectUrl = extractLinksFromPayload(msgData.payload);
                 const gmailMessageUrl = `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(currentUser.email)}#inbox/${msg.id}`;
                 const finalJobLink = extractedDirectUrl || gmailMessageUrl;
                 const headerPlatform = detectPlatformFromHeaders(from, subject, snippet);
 
-                const promptText = `Analyze this email regarding jobs/career:
-From: "${from}"
+                const promptText = `Analyze this email regarding jobs or career applications.
+Even if forwarded or sent from the user themselves for testing, identify if a company and role are mentioned.
 Subject: "${subject}"
-Snippet: "${snippet}"
+From: "${from}"
+Content: "${bodyText.slice(0, 1500)}"
 
-Determine:
-1. company: Company name (string or null if not job-related)
-2. role: Position title (string or null)
+Instructions:
+1. company: Company name (string or null if not job-related).
+2. role: Position/Role title (string or null).
 3. status: 
-   - "discovered": If this is a job alert / recommendation email ("משרות שעשויות לעניין אותך", "New job posted").
-   - "applied": If the user applied ("Application received", "תודה שהגשת מועמדות").
+   - "discovered": If this is a job alert, new job post, or recommendation ("משרות חדשות", "הזדמנויות", "New job posted").
+   - "applied": If application was submitted ("תודה שהגשת", "Application received").
    - "interview": If an interview or phone screen is mentioned.
-   - "offer": If a job offer or contract is mentioned.
-   - "rejected": If a rejection email ("החלטנו להמשיך עם מועמדים אחרים").
-4. platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", "Comeet", or "אתר החברה".
-5. job_type: "משרה מלאה" (default), "משרת סטודנט", or "משרה חלקית".
-6. work_model: "היברידי", "מהמשרד", or "מרחוק".
-7. one_line_summary: A crisp 1-sentence summary in Hebrew explaining current state.
+   - "offer": If job offer or contract is mentioned.
+   - "rejected": If rejected.
+4. platform: "LinkedIn", "AllJobs", "דרושים IL", "JobMaster", or "אתר החברה".
 
-Return ONLY valid JSON: {"company": "string or null", "role": "string or null", "status": "string", "platform": "string", "job_type": "string", "work_model": "string", "one_line_summary": "string"}`;
+Return ONLY valid JSON:
+{"company": "string or null", "role": "string or null", "status": "string", "platform": "string"}`;
 
                 const geminiData = await generateWithNewestModel(promptText);
                 const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1419,15 +1425,11 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             await dbClient.from('jobs').update({
                                 status: toDbStatus(statusToSet),
                                 link: finalJobLink,
-                                snippet: parsed.one_line_summary || snippet,
-                                platform: detectedPlatform,
-                                job_type: parsed.job_type || existingJob.job_type || 'משרה מלאה',
-                                work_model: parsed.work_model || existingJob.work_model
+                                platform: detectedPlatform
                             }).eq('id', existingJob.id).eq('user_id', currentUser.id);
 
                             existingJob.status = statusToSet;
                             existingJob.link = finalJobLink;
-                            existingJob.snippet = parsed.one_line_summary || snippet;
                             updatedCount++;
                             continue;
                         }
@@ -1439,17 +1441,13 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             company: parsed.company,
                             role: parsed.role,
                             platform: detectedPlatform,
-                            status: targetStatus,
+                            status: toDbStatus(targetStatus),
                             link: finalJobLink,
-                            snippet: parsed.one_line_summary || snippet,
-                            job_type: parsed.job_type || 'משרה מלאה',
-                            work_model: parsed.work_model || 'מהמשרד',
                             applied_date: new Date().toISOString().split('T')[0],
                             user_id: currentUser.id
                         };
 
-                        const dbJobData = { ...newJob, status: toDbStatus(targetStatus) };
-                        const { data: inserted } = await dbClient.from('jobs').insert([dbJobData]).select();
+                        const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
                         if (inserted?.[0]) {
                             jobs.unshift({ ...inserted[0], status: normalizeStatus(inserted[0].status) });
                             addedCount++;
@@ -1461,7 +1459,7 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
             renderKanban();
 
             if (addedCount > 0) {
-                showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות שולבו בהצלחה בלוח.');
+                showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח בהצלחה.');
             } else if (!isSilent) {
                 showStatus(`✅ הסריקה הושלמה (עודכנו ${updatedCount} משרות).`);
             }
@@ -1479,8 +1477,8 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
 
         const promptText = `Analyze pasted job text:
 "${rawText}"
-Extract company, role, status ("discovered", "applied", "interview", "offer"), platform, job_type ("משרה מלאה", "משרת סטודנט"), work_model ("היברידי", "מרחוק", "מהמשרד"), and one_line_summary in Hebrew.
-Return ONLY valid JSON: {"company": "string", "role": "string", "status": "string", "platform": "string", "job_type": "string", "work_model": "string", "one_line_summary": "string"}`;
+Extract company, role, status ("discovered", "applied", "interview", "offer"), and platform.
+Return ONLY valid JSON: {"company": "string", "role": "string", "status": "string", "platform": "string"}`;
 
         const geminiData = await generateWithNewestModel(promptText);
         const aiRaw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1494,20 +1492,18 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
                     company: parsed.company,
                     role: parsed.role,
                     platform: parsed.platform || 'מייל חיצוני',
-                    status: targetStatus,
-                    job_type: parsed.job_type || 'משרה מלאה',
-                    work_model: parsed.work_model || 'מהמשרד',
-                    snippet: parsed.one_line_summary || rawText.slice(0, 200),
+                    status: toDbStatus(targetStatus),
+                    link: '',
                     applied_date: new Date().toISOString().split('T')[0]
                 };
 
                 if (currentUser) {
                     newJob.user_id = currentUser.id;
-                    const dbJobData = { ...newJob, status: toDbStatus(targetStatus) };
-                    const { data } = await dbClient.from('jobs').insert([dbJobData]).select();
+                    const { data } = await dbClient.from('jobs').insert([newJob]).select();
                     if (data && data[0]) jobs.unshift({ ...data[0], status: normalizeStatus(data[0].status) });
                 } else {
                     newJob.id = Date.now();
+                    newJob.status = targetStatus;
                     jobs.unshift(newJob);
                     localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
                 }
