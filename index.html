@@ -36,7 +36,6 @@
             overflow-x: hidden;
         }
 
-        /* במחשב: מסך נעול ללא גלילה כללית */
         @media (min-width: 1025px) {
             body.app-active {
                 height: 100vh;
@@ -320,7 +319,6 @@
             border-radius: 999px;
         }
 
-        /* רשימה פנימית נגללת */
         .col-list {
             flex: 1;
             overflow-y: auto;
@@ -330,7 +328,6 @@
         .col-list::-webkit-scrollbar { width: 5px; }
         .col-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 999px; }
 
-        /* כרטיסיית משרה */
         .job-card {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
@@ -348,7 +345,6 @@
         .job-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
         .job-card p { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4; }
         
-        /* תגיות משרה */
         .tag-row {
             display: flex;
             flex-wrap: wrap;
@@ -431,7 +427,6 @@
         }
         .btn-trash-del { background: rgba(255, 69, 58, 0.12); color: var(--ios-red); border: none; border-radius: 8px; padding: 5px 8px; font-size: 12px; cursor: pointer; }
 
-        /* רספונסיביות במובייל */
         @media (max-width: 1024px) {
             body { padding: 12px; }
             .mobile-tabs { display: flex; }
@@ -443,35 +438,35 @@
             .hero-title-accent { font-size: 36px; }
         }
 
-        /* Toast ו-Modals */
         #jobToast {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
+            bottom: 24px;
+            right: 24px;
             background: rgba(28, 28, 30, 0.95);
             backdrop-filter: blur(25px);
-            border: 1px solid rgba(48, 209, 88, 0.4);
+            border: 1px solid rgba(48, 209, 88, 0.5);
             border-radius: 18px;
-            padding: 14px 18px;
-            z-index: 99;
+            padding: 16px 20px;
+            z-index: 9999;
             display: none;
             align-items: center;
-            gap: 12px;
-            max-width: 380px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            gap: 14px;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
         }
         #jobToast .toast-content { flex: 1; }
-        #jobToast .toast-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-        #jobToast .toast-sub { font-size: 12px; color: var(--text-secondary); }
+        #jobToast .toast-title { font-weight: 700; font-size: 15px; margin-bottom: 2px; color: #fff; }
+        #jobToast .toast-sub { font-size: 13px; color: var(--text-secondary); }
         #jobToast .toast-btn {
             background: var(--ios-green);
             color: #000;
             font-weight: 700;
             border: none;
             border-radius: 999px;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 8px 14px;
+            font-size: 13px;
             cursor: pointer;
+            white-space: nowrap;
         }
 
         .modal-overlay {
@@ -570,7 +565,7 @@
     <div id="appView" class="board-container">
         <nav class="ios-navbar">
             <div class="brand-area">
-                <div class="logo" onclick="showLandingPage()">🚀 CareerTracker</div>
+                <div class="logo">🚀 CareerTracker</div>
                 <span id="userStatus" class="user-pill">טוען...</span>
             </div>
 
@@ -602,7 +597,6 @@
 
         <!-- 4 עמודות כרונולוגיות -->
         <div class="kanban-board">
-            <!-- 1. הזדמנויות חדשות -->
             <div class="kanban-col mobile-active" id="col-box-discovered">
                 <div class="col-header">
                     <span class="col-title-text"><span class="dot dot-discovered"></span> 💡 הזדמנויות חדשות</span>
@@ -611,7 +605,6 @@
                 <div class="col-list" id="col-discovered-list"></div>
             </div>
 
-            <!-- 2. הוגש קו"ח -->
             <div class="kanban-col" id="col-box-applied">
                 <div class="col-header">
                     <span class="col-title-text"><span class="dot dot-applied"></span> 📩 הוגש קו״ח</span>
@@ -620,7 +613,6 @@
                 <div class="col-list" id="col-applied-list"></div>
             </div>
 
-            <!-- 3. ראיונות -->
             <div class="kanban-col" id="col-box-interview">
                 <div class="col-header">
                     <span class="col-title-text"><span class="dot dot-interview"></span> 🎙️ ראיונות ומיון</span>
@@ -629,7 +621,6 @@
                 <div class="col-list" id="col-interview-list"></div>
             </div>
 
-            <!-- 4. הצעות -->
             <div class="kanban-col" id="col-box-offer">
                 <div class="col-header">
                     <span class="col-title-text"><span class="dot dot-offer"></span> 🏆 הצעות שכר</span>
@@ -748,7 +739,13 @@
     const ANON_KEY = 'sb_publishable_lb0V7P2Gv-bwzYRZ_B3mcg_9btv1z8u';
     const GEMINI_API_KEY = ['AQ.Ab8', 'RN6IdQ', 'Z3ddKe', 'V8duVw', 'DnGR9W', 'kaXGz4', 'B1C8Nt', '2yVBW0', 'Tqc4Q'].join('');
 
-    const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
+    const dbClient = window.supabase.createClient(PROJECT_URL, ANON_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            storageKey: 'careertracker_auth_session'
+        }
+    });
 
     let jobs = [];
     let deletedJobs = [];
@@ -756,6 +753,32 @@
     let verifiedModel = null;
     let sortedCandidateModels = null;
     const FLOW = ['discovered', 'applied', 'interview', 'offer'];
+
+    // המרת שמות סטטוסים להתאמה מלאה לבסיס הנתונים
+    function normalizeStatus(status) {
+        if (!status) return 'discovered';
+        if (status === 'saved' || status === 'discovered') return 'discovered';
+        if (status === 'applied') return 'applied';
+        if (status === 'interview') return 'interview';
+        if (status === 'offer') return 'offer';
+        return 'discovered';
+    }
+
+    function toDbStatus(status) {
+        // בסיס הנתונים מצפה ל-'saved' במקום 'discovered'
+        if (status === 'discovered') return 'saved';
+        return status;
+    }
+
+    function getStatusHebrew(status) {
+        const map = {
+            discovered: 'הזדמנויות חדשות',
+            applied: 'הוגש קו״ח',
+            interview: 'ראיונות ומיון',
+            offer: 'הצעות שכר'
+        };
+        return map[status] || status;
+    }
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -771,12 +794,12 @@
         document.getElementById('toastTitle').textContent = title;
         document.getElementById('toastSub').textContent = sub;
         toast.style.display = 'flex';
-        setTimeout(() => { toast.style.display = 'none'; }, 8000);
+        setTimeout(() => { toast.style.display = 'none'; }, 9000);
     }
 
     function switchMobileTab(status) {
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        if (event?.currentTarget) event.currentTarget.classList.add('active');
 
         document.querySelectorAll('.kanban-col').forEach(col => col.classList.remove('mobile-active'));
         const targetCol = document.getElementById(`col-box-${status}`);
@@ -791,12 +814,6 @@
 
     function showLandingPage() {
         document.body.classList.remove('app-active');
-        if (!currentUser) {
-            jobs = [];
-            deletedJobs = [];
-            renderKanban();
-            renderTrash();
-        }
         document.getElementById('appView').style.display = 'none';
         document.getElementById('landingView').style.display = 'flex';
     }
@@ -811,7 +828,23 @@
 
     dbClient.auth.onAuthStateChange((event, session) => {
         if (session?.provider_token) {
-            sessionStorage.setItem('cp_google_provider_token', session.provider_token);
+            localStorage.setItem('cp_google_provider_token', session.provider_token);
+        }
+        if (event === 'SIGNED_IN' && session?.user) {
+            currentUser = session.user;
+            document.getElementById('userStatus').textContent = `🟢 ${currentUser.email}`;
+            document.getElementById('authBtn').textContent = 'התנתק';
+            showDashboardView();
+            loadJobs();
+        } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            jobs = [];
+            deletedJobs = [];
+            localStorage.removeItem('cp_google_provider_token');
+            localStorage.removeItem('careertracker_auth_session');
+            renderKanban();
+            renderTrash();
+            showLandingPage();
         }
     });
 
@@ -821,9 +854,8 @@
             if (session && session.user) {
                 currentUser = session.user;
                 if (session.provider_token) {
-                    sessionStorage.setItem('cp_google_provider_token', session.provider_token);
+                    localStorage.setItem('cp_google_provider_token', session.provider_token);
                 }
-                localStorage.removeItem('cp_jobs');
                 document.getElementById('userStatus').textContent = `🟢 ${currentUser.email}`;
                 document.getElementById('authBtn').textContent = 'התנתק';
                 showDashboardView();
@@ -849,6 +881,7 @@
 
         if (!currentUser) {
             jobs = JSON.parse(localStorage.getItem('cp_guest_jobs')) || [];
+            jobs = jobs.map(j => ({ ...j, status: normalizeStatus(j.status) }));
             renderKanban();
             return;
         }
@@ -859,7 +892,7 @@
             .eq('user_id', currentUser.id)
             .order('id', { ascending: false });
 
-        jobs = (!error && data) ? data.map(j => ({ ...j, status: j.status === 'saved' ? 'discovered' : j.status })) : [];
+        jobs = (!error && data) ? data.map(j => ({ ...j, status: normalizeStatus(j.status) })) : [];
         renderKanban();
     }
 
@@ -871,7 +904,7 @@
         });
 
         jobs.forEach(job => {
-            const currentStatus = FLOW.includes(job.status) ? job.status : 'applied';
+            const currentStatus = normalizeStatus(job.status);
             counts[currentStatus] = (counts[currentStatus] || 0) + 1;
             const col = document.getElementById(`col-${currentStatus}-list`);
             if (!col) return;
@@ -890,7 +923,6 @@
             const backBtn = currentStatus !== 'discovered'
                 ? `<button class="btn-card-action btn-back" onclick="regressJob(${job.id}, '${currentStatus}')">➔ החזר</button>` : '';
 
-            // כפתור מהיר להגשה אם המשרה בהזדמנויות
             const quickApplyBtn = currentStatus === 'discovered'
                 ? `<button class="btn-card-action btn-apply-fast" onclick="markAsApplied(${job.id})">הגשתי! העבר ל-הוגש ✅</button>` : '';
 
@@ -927,7 +959,7 @@
     }
 
     async function markAsApplied(id) {
-        const job = jobs.find(j => j.id === id);
+        const job = jobs.find(j => String(j.id) === String(id));
         if (!job) return;
         job.status = 'applied';
         job.applied_date = new Date().toISOString().split('T')[0];
@@ -942,7 +974,7 @@
     }
 
     function openJobDetails(jobId) {
-        const job = jobs.find(j => j.id === jobId);
+        const job = jobs.find(j => String(j.id) === String(jobId));
         if (!job) return;
 
         document.getElementById('modalJobCompany').textContent = job.company;
@@ -1000,7 +1032,7 @@
             card.innerHTML = `
                 <div class="trash-card-info">
                     <h5>${job.company}</h5>
-                    <p>${job.role} • <span>${job.platform || ''}</span></p>
+                    <p>${job.role} • <span style="color:#64d2ff;">${getStatusHebrew(normalizeStatus(job.status))}</span></p>
                 </div>
                 <div class="trash-actions">
                     <button class="btn-restore" onclick="restoreJob(${job.id})">↩️ שחזר</button>
@@ -1012,11 +1044,17 @@
     }
 
     async function deleteJob(id) {
-        const job = jobs.find(j => j.id === id);
+        const job = jobs.find(j => String(j.id) === String(id));
         if (!job) return;
 
-        jobs = jobs.filter(j => j.id !== id);
-        deletedJobs.unshift(job);
+        // שמירת הסטטוס המקורי המדויק לפני המחיקה
+        const jobToSave = {
+            ...job,
+            status: normalizeStatus(job.status)
+        };
+
+        jobs = jobs.filter(j => String(j.id) !== String(id));
+        deletedJobs.unshift(jobToSave);
         localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
 
         if (currentUser) {
@@ -1031,57 +1069,74 @@
     }
 
     async function restoreJob(id) {
-        const jobIndex = deletedJobs.findIndex(j => j.id === id);
+        const jobIndex = deletedJobs.findIndex(j => String(j.id) === String(id));
         if (jobIndex === -1) return;
 
         const jobToRestore = deletedJobs[jobIndex];
+        const targetStatus = normalizeStatus(jobToRestore.status);
+
         deletedJobs.splice(jobIndex, 1);
         localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
+
+        const restoredItem = {
+            ...jobToRestore,
+            status: targetStatus
+        };
 
         if (currentUser) {
             const restoreData = {
                 company: jobToRestore.company,
                 role: jobToRestore.role,
-                platform: jobToRestore.platform,
-                status: jobToRestore.status || 'applied',
-                link: jobToRestore.link,
-                snippet: jobToRestore.snippet,
-                job_type: jobToRestore.job_type,
-                work_model: jobToRestore.work_model,
-                applied_date: jobToRestore.applied_date,
+                platform: jobToRestore.platform || 'אתר החברה',
+                status: toDbStatus(targetStatus),
+                link: jobToRestore.link || '',
+                snippet: jobToRestore.snippet || '',
+                job_type: jobToRestore.job_type || 'משרה מלאה',
+                work_model: jobToRestore.work_model || 'מהמשרד',
+                applied_date: jobToRestore.applied_date || new Date().toISOString().split('T')[0],
                 user_id: currentUser.id
             };
-            const { data } = await dbClient.from('jobs').insert([restoreData]).select();
-            if (data && data[0]) jobs.unshift(data[0]);
+            const { data, error } = await dbClient.from('jobs').insert([restoreData]).select();
+            if (error) {
+                console.error('Error restoring job to Supabase:', error);
+                restoredItem.id = Date.now();
+                jobs.unshift(restoredItem);
+            } else if (data && data[0]) {
+                jobs.unshift({
+                    ...data[0],
+                    status: normalizeStatus(data[0].status)
+                });
+            }
         } else {
-            jobs.unshift(jobToRestore);
+            jobs.unshift(restoredItem);
             localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
         }
 
         renderKanban();
         renderTrash();
-        showStatus(`המשרה ב-${jobToRestore.company} שוחזרה בהצלחה ללוח!`);
+        showStatus(`המשרה ב-${jobToRestore.company} שוחזרה בהצלחה לעמודת "${getStatusHebrew(targetStatus)}"!`);
     }
 
     function permanentlyDeleteJob(id) {
         const ok = confirm("האם אתה בטוח שברצונך למחוק משרה זו לצמיתות?\n\nלאחר מכן יהיה ניתן לשחזר אותה רק באמצעות סריקה מחדש או הוספה ידנית.");
         if (!ok) return;
 
-        deletedJobs = deletedJobs.filter(j => j.id !== id);
+        deletedJobs = deletedJobs.filter(j => String(j.id) !== String(id));
         localStorage.setItem(getTrashKey(), JSON.stringify(deletedJobs));
         renderTrash();
         showStatus("המשרה נמחקה לצמיתות.");
     }
 
     async function moveJob(id, currentStatus) {
-        const idx = FLOW.indexOf(currentStatus);
+        const norm = normalizeStatus(currentStatus);
+        const idx = FLOW.indexOf(norm);
         if (idx < FLOW.length - 1) {
             const next = FLOW[idx + 1];
-            const job = jobs.find(j => j.id === id);
+            const job = jobs.find(j => String(j.id) === String(id));
             if (job) job.status = next;
 
             if (currentUser) {
-                await dbClient.from('jobs').update({ status: next }).eq('id', id).eq('user_id', currentUser.id);
+                await dbClient.from('jobs').update({ status: toDbStatus(next) }).eq('id', id).eq('user_id', currentUser.id);
             } else {
                 localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
             }
@@ -1090,14 +1145,15 @@
     }
 
     async function regressJob(id, currentStatus) {
-        const idx = FLOW.indexOf(currentStatus);
+        const norm = normalizeStatus(currentStatus);
+        const idx = FLOW.indexOf(norm);
         if (idx > 0) {
             const prev = FLOW[idx - 1];
-            const job = jobs.find(j => j.id === id);
+            const job = jobs.find(j => String(j.id) === String(id));
             if (job) job.status = prev;
 
             if (currentUser) {
-                await dbClient.from('jobs').update({ status: prev }).eq('id', id).eq('user_id', currentUser.id);
+                await dbClient.from('jobs').update({ status: toDbStatus(prev) }).eq('id', id).eq('user_id', currentUser.id);
             } else {
                 localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
             }
@@ -1107,11 +1163,12 @@
 
     document.getElementById('addJobForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const selectedStatus = normalizeStatus(document.getElementById('initialStatus').value);
         const newJob = {
             company: document.getElementById('company').value,
             role: document.getElementById('role').value,
             platform: 'הוספה ידנית',
-            status: document.getElementById('initialStatus').value,
+            status: selectedStatus,
             job_type: document.getElementById('jobType').value,
             link: document.getElementById('jobUrl').value,
             applied_date: new Date().toISOString().split('T')[0]
@@ -1123,8 +1180,11 @@
             localStorage.setItem('cp_guest_jobs', JSON.stringify(jobs));
         } else {
             newJob.user_id = currentUser.id;
-            const { data } = await dbClient.from('jobs').insert([newJob]).select();
-            if (data && data[0]) jobs.unshift(data[0]);
+            const dbData = { ...newJob, status: toDbStatus(selectedStatus) };
+            const { data } = await dbClient.from('jobs').insert([dbData]).select();
+            if (data && data[0]) {
+                jobs.unshift({ ...data[0], status: normalizeStatus(data[0].status) });
+            }
         }
 
         renderKanban();
@@ -1138,7 +1198,7 @@
             options: {
                 redirectTo: window.location.origin + window.location.pathname,
                 scopes: 'https://www.googleapis.com/auth/gmail.readonly',
-                queryParams: { access_type: 'offline', prompt: 'consent' }
+                queryParams: { access_type: 'offline' }
             }
         });
     }
@@ -1146,7 +1206,8 @@
     async function handleAuth() {
         if (currentUser) {
             await dbClient.auth.signOut();
-            sessionStorage.removeItem('cp_google_provider_token');
+            localStorage.removeItem('cp_google_provider_token');
+            localStorage.removeItem('careertracker_auth_session');
             currentUser = null;
             jobs = [];
             deletedJobs = [];
@@ -1250,17 +1311,21 @@
         if (!currentUser) return;
 
         const { data: { session } } = await dbClient.auth.getSession();
-        const token = session?.provider_token || sessionStorage.getItem('cp_google_provider_token');
+        const token = session?.provider_token || localStorage.getItem('cp_google_provider_token');
+        
         if (!token) {
-            if (!isSilent) alert('נא להתנתק ולהתחבר מחדש עם Google.');
+            if (!isSilent) {
+                alert('לא נמצא מפתח גישה ל-Gmail.\nיש ללחוץ על "התנתק" ולהתחבר מחדש עם Google פעם אחת.');
+            }
             return;
         }
 
-        if (!isSilent) showStatus('סורק את תיבת ה-Gmail...');
+        if (!isSilent) showStatus('סורק את תיבת ה-Gmail בחיפוש אחר משרות חדשות...');
 
         try {
+            // שאילתת חיפוש מורחבת התומכת ביחיד ורבים בעברית ובאנגלית
             const searchTerms = [
-                'subject:(application OR applied OR interview OR job OR "מועמדות" OR "ראיון" OR "תודה שהגשת" OR "הגשת מועמדות" OR "משרה" OR "דרושים" OR "התאמה למשרה")',
+                'subject:(משרה OR משרות OR "קורות חיים" OR "קו״ח" OR מועמדות OR ראיון OR ראיונות OR דרושים OR application OR applied OR interview OR job OR jobs OR offer OR hiring OR "הגשת מועמדות" OR "תודה שהגשת" OR "התאמה למשרה")',
                 'from:(comeet OR greenhouse OR lever OR workday OR linkedin OR alljobs OR drushim OR jobmaster)'
             ].join(' OR ');
 
@@ -1269,8 +1334,8 @@
             });
 
             if (listRes.status === 401) {
-                sessionStorage.removeItem('cp_google_provider_token');
-                if (!isSilent) showStatus('תוקף ההרשאה פג. התחבר מחדש.');
+                localStorage.removeItem('cp_google_provider_token');
+                if (!isSilent) showStatus('תוקף ההרשאה פג. יש להתנתק ולהתחבר מחדש עם Google.');
                 return;
             }
 
@@ -1279,6 +1344,8 @@
                 if (!isSilent) showStatus('לא נמצאו הודעות דרושים חדשות ב-Gmail.');
                 return;
             }
+
+            if (!isSilent) showStatus(`נמצאו ${listData.messages.length} הודעות דרושים. מפענח באמצעות AI...`);
 
             let addedCount = 0;
             let updatedCount = 0;
@@ -1328,7 +1395,6 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                     if (parsed.company && parsed.role) {
                         const detectedPlatform = headerPlatform || parsed.platform || 'אתר החברה';
 
-                        // אם המייל הוא דחייה - מעביר לפח/ארכיון ולא מציג בלוח
                         if (parsed.status === 'rejected') {
                             const matchIndex = jobs.findIndex(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
                             if (matchIndex !== -1) {
@@ -1337,20 +1403,21 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             continue;
                         }
 
+                        const targetStatus = normalizeStatus(parsed.status);
+
                         const existingJob = jobs.find(j =>
                             j.company?.toLowerCase().trim() === parsed.company.toLowerCase().trim() &&
                             j.role?.toLowerCase().trim() === parsed.role.toLowerCase().trim()
                         );
 
                         if (existingJob) {
-                            // שדרוג סטטוס אוטומטי אם הגיע שלב מתקדם יותר
                             const currentIdx = FLOW.indexOf(existingJob.status);
-                            const newIdx = FLOW.indexOf(parsed.status);
+                            const newIdx = FLOW.indexOf(targetStatus);
                             let statusToSet = existingJob.status;
-                            if (newIdx > currentIdx) statusToSet = parsed.status;
+                            if (newIdx > currentIdx) statusToSet = targetStatus;
 
                             await dbClient.from('jobs').update({
-                                status: statusToSet,
+                                status: toDbStatus(statusToSet),
                                 link: finalJobLink,
                                 snippet: parsed.one_line_summary || snippet,
                                 platform: detectedPlatform,
@@ -1365,7 +1432,6 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             continue;
                         }
 
-                        // בדיקה אם נמחק בעבר
                         const inTrash = deletedJobs.some(j => j.company?.toLowerCase() === parsed.company.toLowerCase());
                         if (inTrash) continue;
 
@@ -1373,7 +1439,7 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             company: parsed.company,
                             role: parsed.role,
                             platform: detectedPlatform,
-                            status: FLOW.includes(parsed.status) ? parsed.status : 'applied',
+                            status: targetStatus,
                             link: finalJobLink,
                             snippet: parsed.one_line_summary || snippet,
                             job_type: parsed.job_type || 'משרה מלאה',
@@ -1382,9 +1448,10 @@ Return ONLY valid JSON: {"company": "string or null", "role": "string or null", 
                             user_id: currentUser.id
                         };
 
-                        const { data: inserted } = await dbClient.from('jobs').insert([newJob]).select();
+                        const dbJobData = { ...newJob, status: toDbStatus(targetStatus) };
+                        const { data: inserted } = await dbClient.from('jobs').insert([dbJobData]).select();
                         if (inserted?.[0]) {
-                            jobs.unshift(inserted[0]);
+                            jobs.unshift({ ...inserted[0], status: normalizeStatus(inserted[0].status) });
                             addedCount++;
                         }
                     }
@@ -1422,11 +1489,12 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
         try {
             const parsed = JSON.parse(aiRaw.replace(/```json|```/g, '').trim());
             if (parsed.company && parsed.role) {
+                const targetStatus = normalizeStatus(parsed.status);
                 const newJob = {
                     company: parsed.company,
                     role: parsed.role,
                     platform: parsed.platform || 'מייל חיצוני',
-                    status: FLOW.includes(parsed.status) ? parsed.status : 'applied',
+                    status: targetStatus,
                     job_type: parsed.job_type || 'משרה מלאה',
                     work_model: parsed.work_model || 'מהמשרד',
                     snippet: parsed.one_line_summary || rawText.slice(0, 200),
@@ -1435,8 +1503,9 @@ Return ONLY valid JSON: {"company": "string", "role": "string", "status": "strin
 
                 if (currentUser) {
                     newJob.user_id = currentUser.id;
-                    const { data } = await dbClient.from('jobs').insert([newJob]).select();
-                    if (data && data[0]) jobs.unshift(data[0]);
+                    const dbJobData = { ...newJob, status: toDbStatus(targetStatus) };
+                    const { data } = await dbClient.from('jobs').insert([dbJobData]).select();
+                    if (data && data[0]) jobs.unshift({ ...data[0], status: normalizeStatus(data[0].status) });
                 } else {
                     newJob.id = Date.now();
                     jobs.unshift(newJob);
