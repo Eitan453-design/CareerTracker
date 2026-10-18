@@ -215,7 +215,7 @@
         .ios-btn-indigo { background: linear-gradient(135deg, #5e5ce6, #bf5af2); color: #fff; }
         .ios-btn-glass { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid var(--border-subtle); }
 
-        /* --- שורת סטטוס עם כפתור סגירה --- */
+        /* --- שורת סטטוס נסגרת --- */
         #statusBanner {
             display: none;
             background: rgba(10, 132, 255, 0.15);
@@ -239,11 +239,105 @@
             cursor: pointer;
             padding: 2px 8px;
             border-radius: 6px;
-            transition: background 0.15s ease, opacity 0.15s ease;
+            transition: background 0.15s ease;
         }
-        .banner-close-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
+        .banner-close-btn:hover { background: rgba(255, 255, 255, 0.12); }
+
+        /* --- התראת Push ניידת עליונה (Mobile Push Banner) --- */
+        #jobToast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translate(-50%, -150%);
+            width: 92%;
+            max-width: 440px;
+            background: rgba(28, 28, 30, 0.88);
+            backdrop-filter: blur(35px);
+            -webkit-backdrop-filter: blur(35px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 22px;
+            padding: 12px 16px;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 
+                0 20px 45px rgba(0, 0, 0, 0.65),
+                0 0 0 1px rgba(255, 255, 255, 0.08);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.48s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.35s ease;
+            cursor: pointer;
+            user-select: none;
         }
+        #jobToast.show {
+            transform: translate(-50%, 0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .toast-icon-wrap {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(48, 209, 88, 0.25), rgba(10, 132, 255, 0.25));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+        .toast-app-name {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+        .toast-time {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .toast-title {
+            font-weight: 700;
+            font-size: 14px;
+            color: #ffffff;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .toast-sub {
+            font-size: 12.5px;
+            color: #d1d1d6;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .toast-close-x {
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            color: var(--text-secondary);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .toast-close-x:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
 
         /* --- מובייל Tabs --- */
         .mobile-tabs {
@@ -454,37 +548,6 @@
             .hero-title-accent { font-size: 36px; }
         }
 
-        #jobToast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: rgba(28, 28, 30, 0.95);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(48, 209, 88, 0.5);
-            border-radius: 18px;
-            padding: 16px 20px;
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            gap: 14px;
-            max-width: 400px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
-        }
-        #jobToast .toast-content { flex: 1; }
-        #jobToast .toast-title { font-weight: 700; font-size: 15px; margin-bottom: 2px; color: #fff; }
-        #jobToast .toast-sub { font-size: 13px; color: var(--text-secondary); }
-        #jobToast .toast-btn {
-            background: var(--ios-green);
-            color: #000;
-            font-weight: 700;
-            border: none;
-            border-radius: 999px;
-            padding: 8px 14px;
-            font-size: 13px;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -534,6 +597,20 @@
     </style>
 </head>
 <body>
+
+<!-- באנר התראה עליון סגנון מובייל (iOS / WhatsApp Push Notification) -->
+<div id="jobToast" onclick="hideToast()">
+    <div class="toast-icon-wrap">🚀</div>
+    <div class="toast-content">
+        <div class="toast-meta">
+            <span class="toast-app-name">CareerTracker</span>
+            <span class="toast-time">עכשיו</span>
+        </div>
+        <div class="toast-title" id="toastTitle">עדכונים חדשים!</div>
+        <div class="toast-sub" id="toastSub">הלוח סונכרן בהצלחה מול ה-Gmail.</div>
+    </div>
+    <button class="toast-close-x" onclick="event.stopPropagation(); hideToast();" title="סגור">✕</button>
+</div>
 
 <div class="container app-container">
     <!-- עמוד נחיתה -->
@@ -664,15 +741,6 @@
     </div>
 </div>
 
-<!-- פופ-אפ התראה -->
-<div id="jobToast">
-    <div class="toast-content">
-        <div class="toast-title" id="toastTitle">🎉 עדכונים חדשים!</div>
-        <div class="toast-sub" id="toastSub">הלוח עודכן בהצלחה מול ה-Gmail.</div>
-    </div>
-    <button class="toast-btn" onclick="document.getElementById('jobToast').style.display='none'">הבנתי 👍</button>
-</div>
-
 <!-- חלונית פרטי משרה -->
 <div class="modal-overlay" id="jobDetailModal">
     <div class="modal-box">
@@ -758,6 +826,7 @@
     let currentUser = null;
     let verifiedModel = null;
     let sortedCandidateModels = null;
+    let toastTimeout = null;
     const FLOW = ['discovered', 'applied', 'interview', 'offer'];
 
     function normalizeStatus(status) {
@@ -800,12 +869,25 @@
         banner.style.display = 'flex';
     }
 
+    // הצגת התראה כמו בטלפון עם גלישה מלמעלה והיעלמות אוטומטית
     function showToast(title, sub) {
         const toast = document.getElementById('jobToast');
         document.getElementById('toastTitle').textContent = title;
         document.getElementById('toastSub').textContent = sub;
-        toast.style.display = 'flex';
-        setTimeout(() => { toast.style.display = 'none'; }, 9000);
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+
+        toast.classList.add('show');
+
+        // נעלם אוטומטית אחרי 4.5 שניות
+        toastTimeout = setTimeout(() => {
+            hideToast();
+        }, 4500);
+    }
+
+    function hideToast() {
+        const toast = document.getElementById('jobToast');
+        if (toast) toast.classList.remove('show');
     }
 
     function switchMobileTab(status) {
@@ -1351,7 +1433,6 @@
         return 'אתר החברה';
     }
 
-    // סריקה מהירה במיוחד (Fast Parallel Scan + Single Batch AI Prompt)
     async function scanGmailForJobs(isSilent = false) {
         if (!currentUser) return;
 
@@ -1366,7 +1447,6 @@
         if (!isSilent) showStatus('סורק הודעות במהירות מתיבת ה-Gmail...');
 
         try {
-            // 1. שליפת רשימת 25 המזהים האחרונים (תופס ~300ms)
             const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&includeSpamTrash=false`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -1383,7 +1463,6 @@
                 return;
             }
 
-            // 2. שליפה מקבילית סופר-מהירה של כל המיילים בבת אחת (Promise.all)
             const messageDetails = await Promise.all(
                 listData.messages.map(m =>
                     fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}`, {
@@ -1392,7 +1471,6 @@
                 )
             );
 
-            // 3. סינון מקומי מהיר של מיילים רלוונטיים בלבד
             const relevantMsgs = [];
             for (const msgData of messageDetails) {
                 if (!msgData) continue;
@@ -1420,9 +1498,8 @@
                 return;
             }
 
-            if (!isSilent) showStatus(`נמצאו ${relevantMsgs.length} הודעות דרושים. מפענח את כולן בבת אחת באמצעות AI...`);
+            if (!isSilent) showStatus(`נמצאו ${relevantMsgs.length} הודעות דרושים. מפענח במהירות באמצעות AI...`);
 
-            // 4. פענוח מרוכז של כל המיילים בקריאת AI אחת בלבד (לוקח 1.5 שניות, אפס 429!)
             const promptText = `Analyze these ${relevantMsgs.length} emails to extract job applications or job alerts.
 Note: Emails might be forwarded or sent by user themselves for testing!
 
@@ -1527,7 +1604,7 @@ Return ONLY a valid JSON array of objects:
             if (addedCount > 0) {
                 showToast(`🎉 זוהו ${addedCount} משרות חדשות!`, 'המשרות נוספו ללוח בהצלחה.');
             }
-            showStatus(`✅ הסריקה הושלמה תוך שניות: נוספו ${addedCount} משרות חדשות, עודכנו ${updatedCount}.`);
+            showStatus(`✅ הסריקה הושלמה: נוספו ${addedCount} משרות חדשות, עודכנו ${updatedCount}.`);
 
         } catch (err) {
             console.error('Scan error:', err);
